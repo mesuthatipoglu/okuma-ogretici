@@ -5,7 +5,7 @@
 window.App = (function () {
     'use strict';
 
-    var APP_VERSION = 'v1.5.3 (2026-09-16 07:45)';
+    var APP_VERSION = 'v2.1.0 (2026-10-20 00:30)';
 
     var currentScreen = 'menu';
     var currentSection = null;
@@ -16,15 +16,18 @@ window.App = (function () {
     // Oyun sınıfları haritası
     var gameClasses = {
         'letter-learn': window.LetterLearnGame,
+        'first-letter': window.FirstLetterGame,
         'balloon-pop': window.BalloonPopGame,
         'letter-hunt': window.LetterHuntGame,
         'letter-paint': window.LetterPaintGame,
         'letter-match': window.LetterMatchGame,
         'letter-sort': window.LetterSortGame,
         'syllable-train': window.SyllableTrainGame,
+        'syllable-wheel': window.SyllableWheelGame,
         'syllable-match': window.SyllableMatchGame,
         'syllable-pop': window.SyllablePopGame,
         'syllable-box': window.SyllableBoxGame,
+        'missing-syllable': window.MissingSyllableGame,
         'word-puzzle': window.WordPuzzleGame,
         'word-match': window.WordMatchGame,
         'word-hunt': window.WordHuntGame,
@@ -34,7 +37,9 @@ window.App = (function () {
         'number-order': window.NumberOrderGame,
         'number-pop': window.NumberPopGame,
         'sentence-train': window.SentenceTrainGame,
-        'story-reader': window.StoryReaderGame
+        'story-reader': window.StoryReaderGame,
+        'shadow-match': window.ShadowMatchGame,
+        'odd-one-out': window.OddOneOutGame
     };
 
     // ────────────────────────────────────────────
@@ -164,10 +169,6 @@ window.App = (function () {
     function openSection(sectionId) {
         if ('speechSynthesis' in window) {
             window.speechSynthesis.cancel();
-        }
-        if (sectionId === 'sentences') {
-            showAppComingSoon();
-            return;
         }
         
         var section = window.GameData.sections.find(function (s) { return s.id === sectionId; });
@@ -301,15 +302,18 @@ window.App = (function () {
         // Bölüm rengine göre arka plan
         var sectionColors = {
             'letter-learn': 'linear-gradient(135deg, #4a148c, #7b1fa2)',
+            'first-letter': 'linear-gradient(135deg, #ad1457, #d81b60)',
             'balloon-pop': 'linear-gradient(135deg, #1a237e, #4a148c)',
             'letter-hunt': 'linear-gradient(135deg, #004d40, #1b5e20)',
             'letter-paint': 'linear-gradient(135deg, #e65100, #bf360c)',
             'letter-match': 'linear-gradient(135deg, #1565c0, #0d47a1)',
             'letter-sort': 'linear-gradient(135deg, #2e7d32, #1b5e20)',
             'syllable-train': 'linear-gradient(135deg, #01579b, #006064)',
+            'syllable-wheel': 'linear-gradient(135deg, #311b92, #6a1b9a)',
             'syllable-match': 'linear-gradient(135deg, #4a148c, #880e4f)',
             'syllable-pop': 'linear-gradient(135deg, #1a237e, #311b92)',
             'syllable-box': 'linear-gradient(135deg, #0d47a1, #1565c0)',
+            'missing-syllable': 'linear-gradient(135deg, #006064, #00838f)',
             'word-puzzle': 'linear-gradient(135deg, #e65100, #f57f17)',
             'word-match': 'linear-gradient(135deg, #33691e, #827717)',
             'word-hunt': 'linear-gradient(135deg, #bf360c, #e65100)',
@@ -319,7 +323,9 @@ window.App = (function () {
             'number-order': 'linear-gradient(135deg, #00695c, #004d40)',
             'number-pop': 'linear-gradient(135deg, #303f9f, #1a237e)',
             'sentence-train': 'linear-gradient(135deg, #4a148c, #6a1b9a)',
-            'story-reader': 'linear-gradient(135deg, #283593, #1565c0)'
+            'story-reader': 'linear-gradient(135deg, #283593, #1565c0)',
+            'shadow-match': 'linear-gradient(135deg, #311b92, #512da8)',
+            'odd-one-out': 'linear-gradient(135deg, #880e4f, #c2185b)'
         };
         container.style.background = sectionColors[gameId] || 'linear-gradient(135deg, #1a237e, #4a148c)';
 

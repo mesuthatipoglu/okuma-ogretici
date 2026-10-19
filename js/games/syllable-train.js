@@ -31,15 +31,25 @@
         this.createHeader('Hece Treni 🚂');
 
         var self = this;
+        var allSyls = window.Utils.shuffle(window.GameData.generateSyllables(6).slice());
+        var exSyls = allSyls.slice(0, 3);
+        var examples = exSyls.map(function(s) {
+            var obj = window.GameData.getSyllableObject(s.text);
+            return {
+                text: s.letters[0].toUpperCase() + ' + ' + s.letters[1].toUpperCase() + ' = ' + s.text.toUpperCase() + ' (' + obj.word + ')',
+                type: 'syllable',
+                sound: s.text,
+                emoji: obj.emoji,
+                asset: obj.asset
+            };
+        });
+
         this.showIntro({
             title: 'Hece Treni! 🚂',
-            description: 'Trenin arkasındaki vagonlara harfleri koyarak hece oluşturalım!\nVagonları sürükleyebilir veya dokunup yuvaya yerleştirebilirsin.',
+            description: 'Trenin arkasındaki vagonlara harfleri koyarak heceyi ve sevimli nesnesini oluşturalım!\nVagonları sürükleyebilir veya dokunup yuvaya yerleştirebilirsin.',
             voiceText: 'Harfleri trene yerleştir ve heceyi oluştur!',
             icon: '🚂',
-            examples: [
-                { text: 'E + L = EL', type: 'syllable', sound: 'el', emoji: '🚂' },
-                { text: 'L + A = LA', type: 'syllable', sound: 'la', emoji: '🚃' }
-            ],
+            examples: examples,
             onStart: function() {
                 self.startGameplay();
             }
@@ -49,6 +59,7 @@
     SyllableTrainGame.prototype.startGameplay = function () {
         this.container.innerHTML = '';
         this.createHeader('Hece Treni 🚂');
+        this.updateDimensions();
         
         this.gameArea = window.Utils.createElement('div', 'game-area syllable-train-area');
         this.gameArea.style.cssText =
@@ -64,52 +75,49 @@
         this.completed = false;
         this.selectedCar = null;
         if (this._hintTimeout) clearTimeout(this._hintTimeout);
+        this.updateDimensions();
         
-        var consonants = window.GameData.getAvailableConsonants(this.maxGroup);
-        var vowels = window.GameData.getAvailableVowels(this.maxGroup);
+        var allSyllables = window.GameData.generateSyllables(this.maxGroup);
+        var picked = window.GameData.getNextFromDeck('syllable-train-deck', allSyllables);
+        this.targetSyllable = picked.text;
+        var firstLetter = picked.letters[0];
+        var secondLetter = picked.letters[1];
+        var sylObj = window.GameData.getSyllableObject(this.targetSyllable);
         
-        if (consonants.length === 0 || vowels.length === 0) {
-            consonants = ['l'];
-            vowels = ['e', 'a'];
-        }
-        
-        // Tekrar eden heceyi engelle
-        var attempts = 0;
-        var c, v, isCv, newSyllable;
-        do {
-            c = window.Utils.randomItem(consonants);
-            v = window.Utils.randomItem(vowels);
-            isCv = Math.random() > 0.5;
-            newSyllable = isCv ? c + v : v + c;
-            attempts++;
-        } while (newSyllable === this._lastSyllable && attempts < 20);
-        
-        this.targetSyllable = newSyllable;
-        this._lastSyllable = newSyllable;
-        
-        var firstLetter = isCv ? c : v;
-        var secondLetter = isCv ? v : c;
-        
-        // Adaptif boyut: Tren alanı (lokomotif + 2 vagon = ~3.6 * carSize)
         var areaW = this.gameArea.clientWidth || window.innerWidth;
         var areaH = this.gameArea.clientHeight || window.innerHeight;
-        var carSize = Math.max(50, Math.min(areaW / 4.2, areaH / 4.5, 90));
+        var carSize = Math.max(54, Math.min(areaW / 4.2, areaH / 4.6, 92));
         this.carSize = carSize;
 
-        // 1. Üst Kısım: Hece İpucu (Gecikmeli Görünecek)
-        var hintEl = window.Utils.createElement('div', 'syllable-hint');
-        hintEl.textContent = '💡 ' + firstLetter.toUpperCase() + ' + ' + secondLetter.toUpperCase() + ' = ' + this.targetSyllable.toUpperCase();
-        hintEl.style.cssText = 
-            'font-size:clamp(16px, 3.8vw, 24px);font-weight:900;color:white;' +
-            'background:rgba(0,0,0,0.3);padding:8px 22px;border-radius:20px;' +
-            'opacity:0;transition:opacity 0.5s ease-in;box-shadow:0 2px 8px rgba(0,0,0,0.2);';
-        this.gameArea.appendChild(hintEl);
-        
-        this._hintTimeout = setTimeout(function() {
-            if (hintEl.parentNode) {
-                hintEl.style.opacity = '1';
-            }
-        }, 3000);
+        // 1. Üst Kısım: Hece Nesnesi + İpucu Kartı
+        var topBanner = window.Utils.createElement('div', 'syllable-station-banner');
+        topBanner.style.cssText =
+            'display:flex;align-items:center;gap:14px;background:rgba(255,255,255,0.92);' +
+            'padding:8px 20px;border-radius:24px;box-shadow:0 6px 16px rgba(0,0,0,0.18);cursor:pointer;';
+
+        var objImg = window.SvgLetters.createEmojiImage(sylObj.emoji, Math.round(carSize * 0.78), sylObj.asset);
+        topBanner.appendChild(objImg);
+
+        var textCol = window.Utils.createElement('div', '');
+        textCol.style.cssText = 'display:flex;flex-direction:column;align-items:flex-start;';
+        var hintTitle = window.Utils.createElement('div', 'syllable-hint-title');
+        hintTitle.textContent = window.Utils.toUpperTR(firstLetter) + ' + ' + window.Utils.toUpperTR(secondLetter) + ' = ' + window.Utils.toUpperTR(this.targetSyllable);
+        hintTitle.style.cssText = 'font-size:clamp(20px, 4.2vw, 30px);font-weight:900;color:#0277BD;';
+
+        var hintWord = window.Utils.createElement('div', 'syllable-hint-word');
+        hintWord.textContent = '✨ ' + sylObj.word + ' (' + window.Utils.toUpperTR(this.targetSyllable) + ')';
+        hintWord.style.cssText = 'font-size:clamp(13px, 2.6vw, 17px);font-weight:800;color:#546E7A;';
+
+        textCol.appendChild(hintTitle);
+        textCol.appendChild(hintWord);
+        topBanner.appendChild(textCol);
+
+        topBanner.addEventListener('click', function() {
+            window.Utils.celebrateElement(topBanner);
+            window.speechSynthesis.cancel();
+            window.AudioManager.speakSyllable(picked.text);
+        });
+        this.gameArea.appendChild(topBanner);
 
         // 2. Orta Kısım: Tren İstasyonu / Ray Alanı
         var stationContainer = window.Utils.createElement('div', 'train-station');
@@ -120,27 +128,24 @@
             'background:rgba(0,0,0,0.12);border-radius:22px;border-bottom:6px solid #546E7A;';
         this.gameArea.appendChild(stationContainer);
 
-        // Lokomotif
         var engine = window.SvgLetters.createTrainCar('🚂', carSize, '#0288D1', true);
         engine.style.flexShrink = '0';
         stationContainer.appendChild(engine);
 
-        // 1. Yuva (Sol)
         var slot1 = window.Utils.createElement('div', 'train-slot slot-1');
         slot1.style.cssText =
             'width:' + carSize + 'px;height:' + (carSize * 0.8) + 'px;flex-shrink:0;' +
-            'border:3px dashed rgba(255,255,255,0.8);border-radius:14px;' +
-            'background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;' +
+            'border:3px dashed rgba(255,255,255,0.85);border-radius:14px;' +
+            'background:rgba(255,255,255,0.22);display:flex;align-items:center;justify-content:center;' +
             'box-sizing:border-box;cursor:pointer;transition:all 0.2s;';
         slot1.dataset.targetId = '1';
         stationContainer.appendChild(slot1);
 
-        // 2. Yuva (Sağ)
         var slot2 = window.Utils.createElement('div', 'train-slot slot-2');
         slot2.style.cssText =
             'width:' + carSize + 'px;height:' + (carSize * 0.8) + 'px;flex-shrink:0;' +
-            'border:3px dashed rgba(255,255,255,0.8);border-radius:14px;' +
-            'background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;' +
+            'border:3px dashed rgba(255,255,255,0.85);border-radius:14px;' +
+            'background:rgba(255,255,255,0.22);display:flex;align-items:center;justify-content:center;' +
             'box-sizing:border-box;cursor:pointer;transition:all 0.2s;';
         slot2.dataset.targetId = '2';
         stationContainer.appendChild(slot2);
@@ -149,8 +154,8 @@
         var poolContainer = window.Utils.createElement('div', 'car-pool-area');
         poolContainer.style.cssText =
             'position:relative;width:100%;max-width:' + (carSize * 4) + 'px;' +
-            'height:' + (carSize * 1.5) + 'px;display:flex;align-items:center;justify-content:space-around;' +
-            'padding:10px;box-sizing:border-box;background:rgba(255,255,255,0.15);border-radius:24px;';
+            'height:' + (carSize * 1.45) + 'px;display:flex;align-items:center;justify-content:space-around;' +
+            'padding:10px;box-sizing:border-box;background:rgba(255,255,255,0.18);border-radius:24px;';
         this.gameArea.appendChild(poolContainer);
 
         var car1Color = window.GameData.getLetterColor(firstLetter) || '#FF9800';
@@ -164,7 +169,6 @@
         car2.dataset.targetId = '2';
         car2.dataset.letter = secondLetter;
 
-        // Vagonları yerleştir
         var letters = [car1, car2];
         if (Math.random() > 0.5) letters.reverse();
 
@@ -180,51 +184,42 @@
         this.slot2 = slot2;
         this.stationContainer = stationContainer;
         this.poolContainer = poolContainer;
+        this.currentSylObj = sylObj;
 
-        // Hem sürükleme hem dokunma etkileşimi ekle
         this.setupCarInteraction(car1, slot1);
         this.setupCarInteraction(car2, slot2);
 
-        // Başlangıç sesli yönergesi
         setTimeout(function() {
             window.speechSynthesis.cancel();
-            window.AudioManager.speak(firstLetter + " ve " + secondLetter + " hecesini oluştur", 0.75, 1.05);
-        }, 500);
+            window.AudioManager.speak(firstLetter + ' ve ' + secondLetter + ' harflerini birleştir, ' + picked.text, 0.8, 1.05);
+        }, 450);
     };
 
-    /**
-     * Vagon etkileşimi: Parmağın ucunda tam senkron sürükleme VE dokunarak yerleştirme (Tap-to-Place)
-     */
     SyllableTrainGame.prototype.setupCarInteraction = function(carEl, targetSlot) {
         var self = this;
         var isDragging = false;
         var isSnapped = false;
         var startPointerX = 0, startPointerY = 0;
-        var origRect = null;
-        var origParent = null;
 
-        // Dokunma (Tap-to-Place)
-        carEl.addEventListener('click', function(e) {
+        carEl.addEventListener('click', function() {
             if (isSnapped || self.completed || isDragging) return;
             self.selectCarForPlacement(carEl, targetSlot);
         });
 
         targetSlot.addEventListener('click', function() {
             if (self.selectedCar === carEl && !isSnapped && !self.completed) {
+                isSnapped = true;
                 self.snapCarIntoSlot(carEl, targetSlot);
                 self.selectedCar = null;
             }
         });
 
-        // Sürükleme (Drag & Drop)
         function onPointerStart(e) {
             if (isSnapped || self.completed) return;
             
             var touch = e.touches ? e.touches[0] : e;
             startPointerX = touch.clientX;
             startPointerY = touch.clientY;
-            origRect = carEl.getBoundingClientRect();
-            origParent = carEl.parentNode;
 
             isDragging = true;
             carEl.style.zIndex = '1000';
@@ -250,11 +245,10 @@
             var dx = touch.clientX - startPointerX;
             var dy = touch.clientY - startPointerY;
 
-            // GPU destekli translate: hiçbir zaman sıçrama yapmaz, tam parmakla hareket eder!
             carEl.style.transform = 'translate3d(' + dx + 'px, ' + dy + 'px, 0) scale(1.15)';
         }
 
-        function onPointerEnd(e) {
+        function onPointerEnd() {
             if (!isDragging) return;
             isDragging = false;
 
@@ -273,15 +267,11 @@
 
             var dist = window.Utils.distance(carCenterX, carCenterY, slotCenterX, slotCenterY);
 
-            // Genişletilmiş temas mesafesi (size * 1.3)
-            if (dist < self.carSize * 1.3) {
-                // Yuvaya oturt!
+            if (dist < self.carSize * 1.35) {
                 isSnapped = true;
                 self.snapCarIntoSlot(carEl, targetSlot);
             } else {
-                // Eski yerine yumuşakça geri dön
                 window.AudioManager.playWrong();
-                window.AudioManager.playZort();
                 window.Utils.shakeElement(carEl);
 
                 carEl.style.transition = 'transform 0.25s ease-out';
@@ -299,15 +289,12 @@
     };
 
     SyllableTrainGame.prototype.selectCarForPlacement = function(carEl, targetSlot) {
-        var self = this;
         if (this.selectedCar === carEl) {
             this.selectedCar = null;
             carEl.style.transform = 'scale(1)';
-            carEl.style.border = 'none';
         } else {
             if (this.selectedCar) {
                 this.selectedCar.style.transform = 'scale(1)';
-                this.selectedCar.style.border = 'none';
             }
             this.selectedCar = carEl;
             carEl.style.transform = 'scale(1.15)';
@@ -316,7 +303,6 @@
             window.speechSynthesis.cancel();
             window.AudioManager.speakLetter(carEl.dataset.letter);
 
-            // Hedef yuvayı vurgula
             targetSlot.style.borderColor = '#00E676';
             targetSlot.style.background = 'rgba(0, 230, 118, 0.25)';
         }
@@ -349,16 +335,18 @@
         if (this.car1.dataset.snapped === 'true' && this.car2.dataset.snapped === 'true') {
             this.completed = true;
             this.showCorrectFeedback(this.stationContainer);
+            window.Utils.celebrateElement(this.stationContainer);
             
             window.speechSynthesis.cancel();
             setTimeout(function () {
-                window.AudioManager.speakSyllable(self.targetSyllable);
-                self.showCorrectOverlay(self.targetSyllable.toUpperCase() + ' 🚂💨');
+                var objWord = self.currentSylObj ? self.currentSylObj.word : '';
+                window.AudioManager.speak(self.targetSyllable + ', ' + objWord, 0.85, 1.1);
+                self.showCorrectOverlay(window.Utils.toUpperTR(self.targetSyllable) + ' 🚂 ' + objWord);
             }, 300);
             
             setTimeout(function () {
                 self.startRound();
-            }, 2000);
+            }, 2100);
         }
     };
 

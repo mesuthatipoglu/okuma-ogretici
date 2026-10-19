@@ -644,8 +644,12 @@ html, body {
 
 /* ── Animasyonlar ── */
 @keyframes float {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-10px); }
+    0%, 100% { transform: translateY(0) rotate(0deg); }
+    50% { transform: translateY(-9px) rotate(2deg); }
+}
+@keyframes floatSlow {
+    0%, 100% { transform: translateY(0) scale(1); }
+    50% { transform: translateY(-6px) scale(1.04); }
 }
 @keyframes floatUp {
     from { transform: translateY(110vh); }
@@ -653,20 +657,26 @@ html, body {
 }
 @keyframes pulse {
     0%, 100% { transform: scale(1); }
-    50% { transform: scale(1.05); }
+    50% { transform: scale(1.06); }
+}
+@keyframes jellyBounce {
+    0%, 100% { transform: scale(1, 1); }
+    30% { transform: scale(1.22, 0.84); }
+    50% { transform: scale(0.88, 1.18); }
+    70% { transform: scale(1.08, 0.94); }
 }
 @keyframes fadeIn {
     from { opacity: 0; transform: translateY(10px); }
     to { opacity: 1; transform: translateY(0); }
 }
 @keyframes slideInUp {
-    from { opacity: 0; transform: translateY(30px); }
-    to { opacity: 1; transform: translateY(0); }
+    from { opacity: 0; transform: translateY(30px) scale(0.95); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
 }
 @keyframes wiggle {
     0%, 100% { transform: rotate(0deg); }
-    25% { transform: rotate(-5deg); }
-    75% { transform: rotate(5deg); }
+    25% { transform: rotate(-7deg); }
+    75% { transform: rotate(7deg); }
 }
 @keyframes sparkle {
     0%, 100% { opacity: 0; transform: scale(0); }
@@ -678,10 +688,12 @@ html, body {
 }
 
 .animate-float { animation: float 3s ease-in-out infinite; }
+.animate-float-slow { animation: floatSlow 2.6s ease-in-out infinite; }
 .animate-pulse { animation: pulse 2s ease-in-out infinite; }
+.animate-jelly { animation: jellyBounce 0.6s ease-in-out; }
 .animate-fadeIn { animation: fadeIn 0.4s ease-out; }
 .animate-slideIn { animation: slideInUp 0.4s ease-out; }
-.animate-wiggle { animation: wiggle 1s ease-in-out infinite; }
+.animate-wiggle { animation: wiggle 1.2s ease-in-out infinite; }
 
 /* ── Responsive ── */
 @media (max-width: 480px) {

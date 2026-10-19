@@ -5,6 +5,9 @@
 window.BaseGame = (function () {
     'use strict';
 
+    var cheerMascots = ['dinozor', 'tekboynuz', 'astronot', 'aslan', 'panda', 'penguen', 'kelebek', 'yunus'];
+    var cheerPhrases = ['Harikasın! 🌟', 'Süpersin! 🎉', 'Aferin Sana! 🥳', 'Çok Başarılı! 🏆', 'Şampiyon! 🚀'];
+
     function BaseGame(container, options) {
         this.container = container;
         this.options = options || {};
@@ -32,10 +35,8 @@ window.BaseGame = (function () {
         this.correctCount = 0;
         this.wrongCount = 0;
 
-        // Boyutları hesapla
         this.updateDimensions();
 
-        // Resize dinle
         var self = this;
         this._resizeHandler = function () {
             self.updateDimensions();
@@ -43,7 +44,6 @@ window.BaseGame = (function () {
         };
         window.addEventListener('resize', this._resizeHandler);
 
-        // Audio başlat
         window.AudioManager.init();
     };
 
@@ -55,7 +55,7 @@ window.BaseGame = (function () {
     };
 
     /**
-     * Doğru cevap geri bildirimi
+     * Doğru cevap geri bildirimi (5 yaş grubu için zengin yıldız patlaması ve hızlı ödül)
      */
     BaseGame.prototype.showCorrectFeedback = function (element) {
         var self = this;
@@ -66,33 +66,44 @@ window.BaseGame = (function () {
 
         if (element) {
             window.Utils.bounceElement(element);
+            try {
+                var elRect = element.getBoundingClientRect();
+                var contRect = this.container.getBoundingClientRect();
+                if (elRect.width > 0 && contRect.width > 0) {
+                    var cx = (elRect.left - contRect.left) + elRect.width / 2;
+                    var cy = (elRect.top - contRect.top) + elRect.height / 2;
+                    window.Utils.showStarBurst(this.container, cx, cy);
+                }
+            } catch (e) {}
         }
 
-        // Her 5 doğru cevapta yıldız ver
-        if (this.correctCount % 5 === 0) {
-            var gameId = this.options.gameId || 'unknown';
+        // Her 3 doğru cevapta yıldız ödülü ver (5 yaşındaki çocuğun motivasyonu için sık ödül)
+        if (this.correctCount % 3 === 0) {
+            var gameId = this.options.gameId || this.gameId || 'unknown';
             window.Progress.addStar(gameId);
+            this.updateStarDisplay();
             window.AudioManager.playStar();
 
-            // Yıldız animasyonu göster
             var starDiv = window.Utils.createElement('div', 'floating-star');
-            starDiv.textContent = '⭐';
+            starDiv.textContent = '🌟 +1 Yıldız!';
             starDiv.style.cssText =
-                'position:absolute;font-size:60px;z-index:9999;pointer-events:none;' +
-                'left:50%;top:50%;transform:translate(-50%,-50%);';
+                'position:absolute;font-size:clamp(28px,6vw,46px);font-weight:900;color:#FFD700;' +
+                'text-shadow:0 4px 12px rgba(0,0,0,0.45);z-index:9999;pointer-events:none;' +
+                'left:50%;top:50%;transform:translate(-50%,-50%);white-space:nowrap;' +
+                'background:rgba(0,0,0,0.45);padding:10px 24px;border-radius:30px;border:3px solid #FFD700;';
             this.container.appendChild(starDiv);
 
             window.Utils.animate(starDiv, [
-                { transform: 'translate(-50%,-50%) scale(0) rotate(0deg)', opacity: 0 },
-                { transform: 'translate(-50%,-50%) scale(1.5) rotate(360deg)', opacity: 1, offset: 0.5 },
-                { transform: 'translate(-50%,-150%) scale(0.5) rotate(720deg)', opacity: 0 }
-            ], { duration: 1200, easing: 'ease-out' }).then(function () {
-                starDiv.remove();
+                { transform: 'translate(-50%,-50%) scale(0.2) rotate(-10deg)', opacity: 0 },
+                { transform: 'translate(-50%,-50%) scale(1.2) rotate(5deg)', opacity: 1, offset: 0.4 },
+                { transform: 'translate(-50%,-130%) scale(0.9) rotate(0deg)', opacity: 0 }
+            ], { duration: 1250, easing: 'ease-out' }).then(function () {
+                if (starDiv.parentNode) starDiv.remove();
             });
         }
 
-        // Her 10 doğru cevapta konfeti
-        if (this.correctCount % 10 === 0) {
+        // Her 5 doğru cevapta gökkuşağı konfeti ve alkış
+        if (this.correctCount % 5 === 0) {
             window.Utils.showConfetti(this.container);
             window.AudioManager.playApplause();
         }
@@ -114,7 +125,6 @@ window.BaseGame = (function () {
      */
     BaseGame.prototype.nextRound = function () {
         this.round++;
-        // Alt sınıf tarafından override edilecek
     };
 
     /**
@@ -142,13 +152,11 @@ window.BaseGame = (function () {
             this._animationFrameId = null;
         }
 
-        // Oyun istatistiklerini kaydet
         if (this.options.gameId) {
             window.Progress.markGamePlayed(this.options.gameId);
         }
 
-        // Sıralı modda yıldız kazanıldıysa adımı ilerlet
-        if (this.stars > 0 && window.Progress.isSequentialMode()) {
+        if (this.correctCount >= 3 && window.Progress.isSequentialMode()) {
             window.Progress.advanceSequentialStep();
         }
 
@@ -156,10 +164,9 @@ window.BaseGame = (function () {
     };
 
     /**
-     * Üst bilgi çubuğunu günceller (global #game-top-bar kullanır, YENİ element oluşturmaz)
+     * Üst bilgi çubuğunu günceller
      */
     BaseGame.prototype.createHeader = function (title) {
-        // Global HTML başlığını güncelle (index.html'deki #game-top-bar)
         var titleBar = document.getElementById('game-title-bar');
         if (titleBar) {
             titleBar.textContent = title || '';
@@ -167,22 +174,21 @@ window.BaseGame = (function () {
 
         var starsBar = document.getElementById('game-stars-bar');
         if (starsBar) {
-            var gameId = this.options.gameId || 'unknown';
+            var gameId = this.options.gameId || this.gameId || 'unknown';
             var starCount = window.Progress.getStars(gameId);
             starsBar.textContent = '⭐ ' + starCount;
         }
 
-        // Referansları sakla (yıldız güncelleme için)
         this._starsEl = starsBar;
     };
 
     /**
-     * Yıldız sayısını günceller (global bar'ı günceller)
+     * Yıldız sayısını günceller
      */
     BaseGame.prototype.updateStarDisplay = function () {
         var starsBar = document.getElementById('game-stars-bar');
         if (starsBar) {
-            var gameId = this.options.gameId || 'unknown';
+            var gameId = this.options.gameId || this.gameId || 'unknown';
             starsBar.textContent = '⭐ ' + window.Progress.getStars(gameId);
         }
     };
@@ -214,9 +220,7 @@ window.BaseGame = (function () {
     };
 
     /**
-     * Oyun öncesi kısa eğitim/tanıtım ve konu anlatımı ekranı gösterir
-     * Çocuğa ne öğreneceğini sesli ve görsel olarak anlatır
-     * @param {Object} opts - { title, icon, description, voiceText, examples, onStart }
+     * Oyun öncesi resimli ve sesli tanıtım ekranı
      */
     BaseGame.prototype.showIntro = function (opts) {
         var self = this;
@@ -225,7 +229,7 @@ window.BaseGame = (function () {
         var icon = opts.icon || '📚';
         var description = opts.description || '';
         var voiceText = opts.voiceText || description || title;
-        var examples = opts.examples || []; // [{text, emoji, sound}]
+        var examples = opts.examples || [];
         var onStart = opts.onStart || function () {};
 
         this.container.innerHTML = '';
@@ -233,39 +237,47 @@ window.BaseGame = (function () {
         var introArea = window.Utils.createElement('div', 'intro-area');
         introArea.style.cssText =
             'display:flex;flex-direction:column;align-items:center;justify-content:center;' +
-            'width:100%;height:100%;padding:20px;box-sizing:border-box;text-align:center;' +
-            'background:linear-gradient(135deg,rgba(255,255,255,0.12),rgba(255,255,255,0.05));' +
+            'width:100%;height:100%;padding:16px;box-sizing:border-box;text-align:center;' +
+            'background:linear-gradient(135deg,rgba(255,255,255,0.14),rgba(255,255,255,0.04));' +
             'overflow-y:auto;-webkit-overflow-scrolling:touch;';
 
-        // İkon (büyük ve sevimli)
-        var iconEl = window.Utils.createElement('div', 'intro-icon', icon);
-        iconEl.style.cssText = 'font-size:clamp(50px,12vw,85px);margin-bottom:12px;filter:drop-shadow(0 4px 8px rgba(0,0,0,0.2));';
-        introArea.appendChild(iconEl);
+        // Büyük vektör ikon / maskot
+        var iconWrap = window.Utils.createElement('div', 'intro-icon-wrap');
+        iconWrap.style.cssText = 'margin-bottom:8px;';
+        if (window.SvgLetters && window.SvgLetters.createObjectImage) {
+            var badge = window.SvgLetters.createObjectImage(icon, 84, { animate: true });
+            iconWrap.appendChild(badge);
+        } else {
+            var iconEl = window.Utils.createElement('div', 'intro-icon', icon);
+            iconEl.style.cssText = 'font-size:clamp(46px,11vw,78px);';
+            iconWrap.appendChild(iconEl);
+        }
+        introArea.appendChild(iconWrap);
 
         // Başlık
         var titleEl = window.Utils.createElement('div', 'intro-title', title);
         titleEl.style.cssText =
-            'font-size:clamp(20px,4.5vw,34px);font-weight:800;color:white;' +
-            'text-shadow:2px 2px 6px rgba(0,0,0,0.3);margin-bottom:10px;';
+            'font-size:clamp(20px,4.5vw,32px);font-weight:900;color:white;' +
+            'text-shadow:2px 2px 6px rgba(0,0,0,0.3);margin-bottom:8px;';
         introArea.appendChild(titleEl);
 
-        // Konu Anlatımı / Açıklama
+        // Açıklama
         if (description) {
             var descEl = window.Utils.createElement('div', 'intro-desc', description);
             descEl.style.cssText =
-                'font-size:clamp(15px,3vw,20px);color:rgba(255,255,255,0.95);' +
-                'line-height:1.5;margin-bottom:16px;max-width:550px;' +
-                'background:rgba(0,0,0,0.2);padding:12px 20px;border-radius:18px;backdrop-filter:blur(5px);';
+                'font-size:clamp(14px,2.8vw,19px);color:rgba(255,255,255,0.96);' +
+                'line-height:1.45;margin-bottom:12px;max-width:540px;' +
+                'background:rgba(0,0,0,0.22);padding:10px 18px;border-radius:18px;backdrop-filter:blur(5px);';
             introArea.appendChild(descEl);
         }
 
-        // Sesli Anlatım Butonu (Dinle)
+        // Sesli Dinle Butonu
         var voiceBtn = window.Utils.createElement('button', 'intro-voice-btn');
         voiceBtn.innerHTML = '🔊 <span>Sesli Dinle</span>';
         voiceBtn.style.cssText =
-            'padding:8px 20px;border:none;border-radius:20px;background:rgba(255,255,255,0.25);' +
-            'color:white;font-size:clamp(14px,2.8vw,17px);font-weight:700;cursor:pointer;' +
-            'margin-bottom:16px;display:flex;align-items:center;gap:8px;transition:all 0.2s;';
+            'padding:8px 20px;border:2px solid rgba(255,255,255,0.5);border-radius:22px;background:rgba(255,255,255,0.22);' +
+            'color:white;font-size:clamp(13px,2.6vw,16px);font-weight:800;cursor:pointer;' +
+            'margin-bottom:12px;display:flex;align-items:center;gap:8px;transition:all 0.2s;';
         
         var speakIntro = function() {
             window.speechSynthesis.cancel();
@@ -274,29 +286,42 @@ window.BaseGame = (function () {
             }
         };
         voiceBtn.addEventListener('click', function() {
-            window.Utils.pulseElement(voiceBtn);
+            window.Utils.bounceElement(voiceBtn);
             speakIntro();
         });
         introArea.appendChild(voiceBtn);
 
-        // Örnekler (Çocuğun dokunarak sesini dinleyebileceği kartlar)
+        // Zengin Resimli Örnek Kartlar
         if (examples.length > 0) {
-            var exTitle = window.Utils.createElement('div', 'intro-ex-title', '👇 Dokun ve Sesini Duy:');
-            exTitle.style.cssText = 'font-size:clamp(13px,2.5vw,16px);color:#FFD54F;font-weight:700;margin-bottom:8px;';
+            var exTitle = window.Utils.createElement('div', 'intro-ex-title', '👇 Resimlere Dokun ve Sesini Dinle:');
+            exTitle.style.cssText = 'font-size:clamp(13px,2.5vw,16px);color:#FFD54F;font-weight:800;margin-bottom:8px;';
             introArea.appendChild(exTitle);
 
             var exGrid = window.Utils.createElement('div', 'intro-examples');
             exGrid.style.cssText =
-                'display:flex;flex-wrap:wrap;gap:12px;justify-content:center;margin-bottom:20px;max-width:600px;';
+                'display:flex;flex-wrap:wrap;gap:12px;justify-content:center;margin-bottom:16px;max-width:620px;';
 
             examples.forEach(function (ex) {
                 var exItem = window.Utils.createElement('div', 'intro-example');
                 exItem.style.cssText =
-                    'background:white;color:#333;border-radius:16px;padding:10px 18px;' +
-                    'font-size:clamp(18px,4vw,26px);font-weight:800;' +
-                    'display:flex;align-items:center;gap:8px;cursor:pointer;' +
-                    'box-shadow:0 4px 12px rgba(0,0,0,0.2);transition:transform 0.15s;user-select:none;';
-                exItem.innerHTML = (ex.emoji ? '<span style="font-size:1.2em">' + ex.emoji + '</span> ' : '') + ex.text;
+                    'background:white;color:#222;border-radius:20px;padding:8px 16px;' +
+                    'font-size:clamp(16px,3.6vw,22px);font-weight:900;' +
+                    'display:flex;align-items:center;gap:10px;cursor:pointer;' +
+                    'box-shadow:0 6px 16px rgba(0,0,0,0.22);transition:transform 0.15s;user-select:none;' +
+                    'border:3px solid #FFD54F;';
+
+                if (window.SvgLetters && window.SvgLetters.createObjectImage && (ex.image || ex.word || ex.emoji)) {
+                    var miniObj = window.SvgLetters.createObjectImage(
+                        { word: ex.word, emoji: ex.emoji, image: ex.image },
+                        44,
+                        { bg: false, animate: false }
+                    );
+                    exItem.appendChild(miniObj);
+                }
+
+                var txtSpan = document.createElement('span');
+                txtSpan.textContent = ex.text;
+                exItem.appendChild(txtSpan);
                 
                 exItem.addEventListener('click', function () {
                     window.Utils.bounceElement(exItem);
@@ -317,12 +342,13 @@ window.BaseGame = (function () {
         }
 
         // Başla butonu
-        var startBtn = window.Utils.createElement('button', 'intro-start-btn', '🎮 Oyuna Başla!');
+        var startBtn = window.Utils.createElement('button', 'intro-start-btn', '🎮 Hemen Oynayalım!');
         startBtn.style.cssText =
-            'padding:14px 44px;border:none;border-radius:30px;' +
-            'background:linear-gradient(135deg,#4CAF50,#2E7D32);color:white;' +
-            'font-size:clamp(17px,3.8vw,24px);font-weight:800;cursor:pointer;' +
-            'box-shadow:0 6px 20px rgba(46,125,50,0.5);transition:transform 0.15s;flex-shrink:0;';
+            'padding:14px 44px;border:3px solid #FFF59D;border-radius:35px;' +
+            'background:linear-gradient(135deg,#00E676,#00C853);color:white;' +
+            'font-size:clamp(18px,3.8vw,25px);font-weight:900;cursor:pointer;' +
+            'box-shadow:0 8px 24px rgba(0,200,83,0.5);transition:transform 0.15s;flex-shrink:0;' +
+            'text-shadow:1px 1px 3px rgba(0,0,0,0.25);animation:pulse 1.8s infinite;';
 
         startBtn.addEventListener('click', function () {
             window.speechSynthesis.cancel();
@@ -330,13 +356,12 @@ window.BaseGame = (function () {
             startBtn.style.transform = 'scale(0.95)';
             setTimeout(function () {
                 onStart();
-            }, 150);
+            }, 120);
         });
 
         introArea.appendChild(startBtn);
         this.container.appendChild(introArea);
 
-        // Ekran açıldıktan hemen sonra hafif gecikmeyle seslendir
         this._introTimeout = setTimeout(function() {
             if (!self.running) return;
             speakIntro();
@@ -344,34 +369,47 @@ window.BaseGame = (function () {
     };
 
     /**
-     * Ekrana "Doğru!" overlay'i gösterir
+     * Ekrana sevimli maskotlu ve konfetili kutlama overlay'i gösterir
      */
-    BaseGame.prototype.showCorrectOverlay = function (text) {
+    BaseGame.prototype.showCorrectOverlay = function (text, customObject) {
         var self = this;
+        window.Utils.showConfetti(this.container);
+
         var overlay = window.Utils.createElement('div', 'correct-overlay');
         overlay.style.cssText =
             'position:absolute;top:0;left:0;right:0;bottom:0;' +
             'display:flex;align-items:center;justify-content:center;' +
-            'background:rgba(76,175,80,0.3);z-index:9998;pointer-events:none;';
+            'background:rgba(0,0,0,0.35);backdrop-filter:blur(3px);z-index:9998;pointer-events:none;';
 
-        var msg = window.Utils.createElement('div', 'correct-msg', text || 'Aferin! 🎉');
+        var card = window.Utils.createElement('div', 'correct-mascot-card');
+        card.style.cssText =
+            'display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;' +
+            'padding:24px 38px;border-radius:32px;' +
+            'background:linear-gradient(135deg, #43A047, #00C853);' +
+            'border:5px solid #FFD700;box-shadow:0 16px 40px rgba(0,0,0,0.4);text-align:center;';
+
+        var mascotSlug = customObject || window.Utils.randomItem(cheerMascots);
+        if (window.SvgLetters && window.SvgLetters.createObjectImage) {
+            var mascotEl = window.SvgLetters.createObjectImage(mascotSlug, 96, { animate: true });
+            card.appendChild(mascotEl);
+        }
+
+        var msg = window.Utils.createElement('div', 'correct-msg', text || window.Utils.randomItem(cheerPhrases));
         msg.style.cssText =
-            'font-size:' + (this.dims ? this.dims.fontSize.xxlarge : '48px') + ';' +
-            'font-weight:bold;color:white;' +
-            'text-shadow:2px 2px 8px rgba(0,0,0,0.3);' +
-            'padding:20px 40px;border-radius:20px;' +
-            'background:rgba(76,175,80,0.8);';
+            'font-size:clamp(26px, 6vw, 44px);font-weight:900;color:white;' +
+            'text-shadow:2px 3px 6px rgba(0,0,0,0.35);';
+        card.appendChild(msg);
 
-        overlay.appendChild(msg);
+        overlay.appendChild(card);
         this.container.appendChild(overlay);
 
-        return window.Utils.animate(msg, [
-            { transform: 'scale(0)', opacity: 0 },
-            { transform: 'scale(1.2)', opacity: 1, offset: 0.4 },
-            { transform: 'scale(1)', opacity: 1, offset: 0.6 },
-            { transform: 'scale(1)', opacity: 0 }
-        ], { duration: 1500, easing: 'ease-out' }).then(function () {
-            overlay.remove();
+        return window.Utils.animate(card, [
+            { transform: 'scale(0.2) rotate(-12deg)', opacity: 0 },
+            { transform: 'scale(1.15) rotate(4deg)', opacity: 1, offset: 0.35 },
+            { transform: 'scale(1) rotate(0deg)', opacity: 1, offset: 0.75 },
+            { transform: 'scale(0.85) translateY(-20px)', opacity: 0 }
+        ], { duration: 1500, easing: 'cubic-bezier(0.175, 0.885, 0.32, 1.275)' }).then(function () {
+            if (overlay.parentNode) overlay.remove();
         });
     };
 
@@ -379,18 +417,17 @@ window.BaseGame = (function () {
      * Geçiş animasyonuyla yeni tur hazırlar
      */
     BaseGame.prototype.transitionToNextRound = function (setupFn) {
-        var self = this;
         var gameArea = this.container.querySelector('.game-area') || this.container;
 
         return window.Utils.animate(gameArea, [
             { opacity: 1, transform: 'scale(1)' },
             { opacity: 0, transform: 'scale(0.95)' }
-        ], { duration: 200, easing: 'ease-in' }).then(function () {
+        ], { duration: 180, easing: 'ease-in' }).then(function () {
             if (setupFn) setupFn();
             return window.Utils.animate(gameArea, [
                 { opacity: 0, transform: 'scale(0.95)' },
                 { opacity: 1, transform: 'scale(1)' }
-            ], { duration: 200, easing: 'ease-out' });
+            ], { duration: 220, easing: 'ease-out' });
         });
     };
 

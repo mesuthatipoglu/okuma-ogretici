@@ -1,6 +1,14 @@
 (function() {
+    'use strict';
+
+    /**
+     * Resimli Hikaye 📖
+     * Etkileşimli, vektör görselli ve kelime takipli 6 farklı masal/hikaye okuma oyunu
+     */
     function StoryReaderGame(container, options) {
         window.BaseGame.call(this, container, options);
+        this.stories = [];
+        this.storyIndex = 0;
         this.currentStory = null;
         this.currentPageIndex = 0;
         this.isReading = false;
@@ -11,197 +19,208 @@
 
     StoryReaderGame.prototype.init = function() {
         window.BaseGame.prototype.init.call(this);
+        this.helpText = 'Hikaye kitabındaki resme veya kelimelere dokunarak sesli dinle! Yukarıdan istediğin masalı seçebilirsin.';
+        this.helpIcon = '📖';
         this.createHeader('Resimli Hikaye 📖');
-        
-        this.gameArea = document.createElement('div');
-        this.gameArea.className = 'game-area';
-        this.gameArea.style.display = 'flex';
-        this.gameArea.style.flexDirection = 'column';
-        this.gameArea.style.alignItems = 'center';
-        this.gameArea.style.justifyContent = 'space-between';
-        this.gameArea.style.padding = '20px';
-        this.gameArea.style.boxSizing = 'border-box';
-        this.gameArea.style.height = 'calc(100% - 60px)';
-        this.gameArea.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
-        this.gameArea.style.borderRadius = '20px';
-        this.container.appendChild(this.gameArea);
-        
-        this.pageContainer = document.createElement('div');
-        this.pageContainer.className = 'story-page';
-        this.pageContainer.style.flex = '1';
-        this.pageContainer.style.display = 'flex';
-        this.pageContainer.style.flexDirection = 'column';
-        this.pageContainer.style.alignItems = 'center';
-        this.pageContainer.style.justifyContent = 'center';
-        this.pageContainer.style.width = '100%';
-        this.gameArea.appendChild(this.pageContainer);
-        
-        this.navContainer = document.createElement('div');
-        this.navContainer.className = 'story-nav';
-        this.navContainer.style.display = 'flex';
-        this.navContainer.style.flexDirection = 'row';
-        this.navContainer.style.alignItems = 'center';
-        this.navContainer.style.justifyContent = 'space-between';
-        this.navContainer.style.width = '100%';
-        this.navContainer.style.padding = '10px 20px';
-        this.navContainer.style.boxSizing = 'border-box';
-        this.gameArea.appendChild(this.navContainer);
-        
-        this.prevBtn = document.createElement('button');
-        this.prevBtn.textContent = '⬅️';
-        this.prevBtn.style.fontSize = this.dims.fontSize.xlarge + 'px';
-        this.prevBtn.style.background = 'none';
-        this.prevBtn.style.border = 'none';
-        this.prevBtn.style.cursor = 'pointer';
-        this.prevBtn.onclick = this.prevPage.bind(this);
-        this.navContainer.appendChild(this.prevBtn);
-        
-        this.counterDisplay = document.createElement('div');
-        this.counterDisplay.style.fontSize = this.dims.fontSize.large + 'px';
-        this.counterDisplay.style.color = 'white';
-        this.navContainer.appendChild(this.counterDisplay);
-        
-        this.nextBtn = document.createElement('button');
-        this.nextBtn.textContent = '➡️';
-        this.nextBtn.style.fontSize = this.dims.fontSize.xlarge + 'px';
-        this.nextBtn.style.background = 'none';
-        this.nextBtn.style.border = 'none';
-        this.nextBtn.style.cursor = 'pointer';
-        this.nextBtn.onclick = this.nextPage.bind(this);
-        this.navContainer.appendChild(this.nextBtn);
-        
-        this.setupStory();
+
+        var self = this;
+        this.stories = window.GameData.getAvailableStories(6);
+
+        var examples = this.stories.slice(0, 3).map(function(st) {
+            var p0 = st.pages[0];
+            return {
+                text: st.title,
+                sound: st.title,
+                type: 'sentence',
+                emoji: p0.emoji || '📖',
+                asset: p0.asset || null
+            };
+        });
+
+        this.showIntro({
+            title: 'Resimli Hikayeler! 📖',
+            icon: '📖',
+            description: 'Birbirinden eğlenceli resimli hikayeleri birlikte okuyalım!\nKelimelere tek tek dokunabilir veya tüm sayfayı dinleyebilirsin.',
+            voiceText: 'Resimli hikayeleri birlikte okuyalım!',
+            examples: examples,
+            onStart: function() {
+                self.startGameplay();
+            }
+        });
     };
 
-    StoryReaderGame.prototype.setupStory = function() {
-        var stories = window.GameData.getAvailableStories(this.maxGroup);
-        if (!stories || stories.length === 0) {
-            // fallback
-            stories = [{
-                title: "Ali",
-                pages: [
-                    {text: "ali ata bak"},
-                    {text: "ali topu at"}
-                ]
-            }];
-        }
-        
-        this.currentStory = window.Utils.randomItem(stories);
+    StoryReaderGame.prototype.startGameplay = function() {
+        var self = this;
+        this.container.innerHTML = '';
+        this.createHeader('Resimli Hikaye 📖');
+        this.updateDimensions();
+
+        // Üst Hikaye Seçici Çubuğu
+        var selectorBar = window.Utils.createElement('div', 'story-selector-bar');
+        selectorBar.style.cssText =
+            'display:flex;gap:8px;overflow-x:auto;width:100%;padding:8px 12px;box-sizing:border-box;' +
+            'background:rgba(0,0,0,0.18);align-items:center;justify-content:center;flex-wrap:wrap;';
+
+        this.stories.forEach(function(st, idx) {
+            var btn = window.Utils.createElement('button', 'story-pick-btn', st.title);
+            var isAct = (idx === self.storyIndex);
+            btn.style.cssText =
+                'border:none;border-radius:16px;padding:6px 14px;font-weight:900;cursor:pointer;' +
+                'font-size:clamp(12px, 2.4vw, 15px);transition:all 0.2s;' +
+                (isAct ? 'background:#FFD54F;color:#3E2723;box-shadow:0 3px 8px rgba(0,0,0,0.25);transform:scale(1.05);' : 'background:rgba(255,255,255,0.25);color:white;');
+            btn.addEventListener('click', function() {
+                window.AudioManager.playClick();
+                self.storyIndex = idx;
+                self.startGameplay();
+            });
+            selectorBar.appendChild(btn);
+        });
+        this.container.appendChild(selectorBar);
+
+        this.gameArea = window.Utils.createElement('div', 'game-area story-reader-area');
+        this.gameArea.style.cssText =
+            'display:flex;flex-direction:column;align-items:center;justify-content:space-between;' +
+            'padding:14px;box-sizing:border-box;flex:1;width:100%;overflow:hidden;';
+        this.container.appendChild(this.gameArea);
+
+        this.pageContainer = window.Utils.createElement('div', 'story-page');
+        this.pageContainer.style.cssText =
+            'flex:1;display:flex;flex-direction:column;align-items:center;justify-content:space-evenly;' +
+            'width:100%;max-width:620px;background:rgba(255,255,255,0.95);border-radius:28px;' +
+            'padding:18px;box-sizing:border-box;box-shadow:0 10px 30px rgba(0,0,0,0.2);border:4px solid #FFE082;';
+        this.gameArea.appendChild(this.pageContainer);
+
+        this.navContainer = window.Utils.createElement('div', 'story-nav');
+        this.navContainer.style.cssText =
+            'display:flex;align-items:center;justify-content:space-between;width:100%;max-width:580px;padding:10px 6px;box-sizing:border-box;';
+        this.gameArea.appendChild(this.navContainer);
+
+        this.prevBtn = window.Utils.createElement('button', '', '◀ Önceki Sayfa');
+        this.prevBtn.style.cssText =
+            'padding:10px 20px;border:none;border-radius:22px;background:#78909C;color:white;font-weight:900;font-size:clamp(14px, 2.8vw, 18px);cursor:pointer;';
+        this.prevBtn.onclick = this.prevPage.bind(this);
+        this.navContainer.appendChild(this.prevBtn);
+
+        this.counterDisplay = window.Utils.createElement('div', '');
+        this.counterDisplay.style.cssText = 'font-size:clamp(16px, 3.2vw, 22px);font-weight:900;color:white;';
+        this.navContainer.appendChild(this.counterDisplay);
+
+        this.nextBtn = window.Utils.createElement('button', '', 'Sonraki Sayfa ▶');
+        this.nextBtn.style.cssText =
+            'padding:10px 22px;border:none;border-radius:22px;background:#4CAF50;color:white;font-weight:900;font-size:clamp(14px, 2.8vw, 18px);cursor:pointer;box-shadow:0 4px 12px rgba(76,175,80,0.35);';
+        this.nextBtn.onclick = this.nextPage.bind(this);
+        this.navContainer.appendChild(this.nextBtn);
+
+        this.currentStory = this.stories[this.storyIndex] || this.stories[0];
         this.currentPageIndex = 0;
         this.renderPage();
     };
 
     StoryReaderGame.prototype.renderPage = function() {
-        this.pageContainer.innerHTML = '';
-        var page = this.currentStory.pages[this.currentPageIndex];
-        
-        this.counterDisplay.textContent = (this.currentPageIndex + 1) + ' / ' + this.currentStory.pages.length;
-        
-        this.prevBtn.style.visibility = this.currentPageIndex > 0 ? 'visible' : 'hidden';
-        
-        // Try to find an emoji for the page based on its words
-        var words = page.text.toLowerCase().split(' ');
-        var allWords = window.GameData.words || [];
-        var emoji = '📖'; // default
-        
-        var fallbackEmojis = { 'kedi':'🐱', 'su':'💧', 'anne':'👩', 'arı':'🐝', 'çiçek':'🌸', 'balık':'🐟', 'deniz':'🌊' };
-        
-        for (var i = 0; i < words.length; i++) {
-            var w = words[i];
-            if (fallbackEmojis[w]) {
-                emoji = fallbackEmojis[w];
-                break;
-            }
-            var wordData = allWords.find(function(item) { return item.word === w; });
-            if (wordData && wordData.emoji) {
-                emoji = wordData.emoji;
-                break;
-            }
-        }
-        
-        var imageContainer = document.createElement('div');
-        imageContainer.className = 'story-image';
-        if (typeof SvgLetters !== 'undefined' && window.SvgLetters.createEmojiImage) {
-            var imgEl = window.SvgLetters.createEmojiImage(emoji, Math.min(this.dims.minDim * 0.4, 200));
-            imageContainer.appendChild(imgEl);
-        } else {
-            imageContainer.textContent = emoji;
-            imageContainer.style.fontSize = Math.min(this.dims.minDim * 0.4, 200) + 'px';
-        }
-        imageContainer.style.marginBottom = '30px';
-        this.pageContainer.appendChild(imageContainer);
-        
-        var textContainer = document.createElement('div');
-        textContainer.className = 'story-text';
-        textContainer.style.fontSize = this.dims.fontSize.xlarge + 'px';
-        textContainer.style.color = 'white';
-        textContainer.style.textAlign = 'center';
-        textContainer.style.cursor = 'pointer';
-        textContainer.style.lineHeight = '1.5';
-        
-        var spanWords = [];
-        for (var j = 0; j < words.length; j++) {
-            var span = document.createElement('span');
-            span.textContent = words[j];
-            span.style.margin = '0 10px';
-            span.style.display = 'inline-block';
-            span.style.transition = 'color 0.3s, transform 0.3s';
-            textContainer.appendChild(span);
-            spanWords.push(span);
-        }
-        
         var self = this;
-        textContainer.onclick = function() {
-            if (self.isReading) return;
-            self.readPage(words, spanWords);
-        };
-        
+        this.pageContainer.innerHTML = '';
+        this.isReading = false;
+        var page = this.currentStory.pages[this.currentPageIndex];
+
+        this.counterDisplay.textContent = 'Sayfa ' + (this.currentPageIndex + 1) + ' / ' + this.currentStory.pages.length;
+        this.prevBtn.style.visibility = this.currentPageIndex > 0 ? 'visible' : 'hidden';
+        this.nextBtn.textContent = (this.currentPageIndex === this.currentStory.pages.length - 1) ? 'Bitir 🎉' : 'Sonraki ▶';
+
+        var titleBadge = window.Utils.createElement('div', 'story-title-badge', '📖 ' + this.currentStory.title);
+        titleBadge.style.cssText = 'font-size:clamp(15px, 3vw, 20px);font-weight:900;color:#EF6C00;background:#FFF3E0;padding:4px 16px;border-radius:16px;';
+        this.pageContainer.appendChild(titleBadge);
+
+        var imgSize = Math.min(150, Math.max(95, Math.round(this.dims.height * 0.25)));
+        var imgEl = window.SvgLetters.createEmojiImage(page.emoji || '📖', imgSize, page.asset);
+        imgEl.style.cursor = 'pointer';
+        this.pageContainer.appendChild(imgEl);
+
+        var words = page.text.split(' ');
+        var textContainer = window.Utils.createElement('div', 'story-text');
+        textContainer.style.cssText =
+            'display:flex;flex-wrap:wrap;gap:10px;justify-content:center;align-items:center;padding:8px;';
+
+        var spanWords = [];
+        words.forEach(function(w) {
+            var wordBtn = window.Utils.createElement('span', 'story-word-pill', w);
+            wordBtn.style.cssText =
+                'font-size:clamp(22px, 5vw, 36px);font-weight:900;color:#263238;background:#F5F5F5;' +
+                'padding:6px 14px;border-radius:16px;cursor:pointer;transition:all 0.25s;border:2px solid #E0E0E0;';
+            wordBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                window.speechSynthesis.cancel();
+                window.AudioManager.speakWord(w);
+                window.Utils.bounceElement(wordBtn);
+            });
+            textContainer.appendChild(wordBtn);
+            spanWords.push(wordBtn);
+        });
         this.pageContainer.appendChild(textContainer);
-        
-        var hint = document.createElement('div');
-        hint.textContent = '👆 Okumak için dokun';
-        hint.style.fontSize = this.dims.fontSize.medium + 'px';
-        hint.style.color = 'rgba(255, 255, 255, 0.6)';
-        hint.style.marginTop = '20px';
-        this.pageContainer.appendChild(hint);
+
+        var readAllBtn = window.Utils.createElement('button', 'story-read-btn', '🔊 Sayfayı Sesli Oku');
+        readAllBtn.style.cssText =
+            'border:none;border-radius:24px;background:linear-gradient(135deg,#FF9800,#F57C00);color:white;' +
+            'font-size:clamp(15px, 3.2vw, 20px);font-weight:900;padding:10px 26px;cursor:pointer;box-shadow:0 4px 12px rgba(245,124,0,0.35);';
+        readAllBtn.addEventListener('click', function() {
+            window.Utils.celebrateElement(imgEl);
+            self.readPage(words, spanWords);
+        });
+        this.pageContainer.appendChild(readAllBtn);
+
+        imgEl.addEventListener('click', function() {
+            window.Utils.celebrateElement(imgEl);
+            self.readPage(words, spanWords);
+        });
+
+        setTimeout(function() {
+            if (!self.running) return;
+            self.readPage(words, spanWords);
+        }, 450);
     };
 
     StoryReaderGame.prototype.readPage = function(words, spanWords) {
+        if (this.isReading) return;
         this.isReading = true;
         var self = this;
-        
+
         var idx = 0;
         function readNext() {
-            if (idx >= words.length) {
+            if (!self.running || idx >= words.length) {
                 self.isReading = false;
+                spanWords.forEach(function(sp) {
+                    sp.style.background = '#F5F5F5';
+                    sp.style.color = '#263238';
+                    sp.style.transform = 'scale(1)';
+                });
                 return;
             }
-            
-            // Highlight
+
             for (var k = 0; k < spanWords.length; k++) {
-                spanWords[k].style.color = k === idx ? '#FFD700' : 'white';
-                spanWords[k].style.transform = k === idx ? 'scale(1.2)' : 'scale(1)';
-            }
-            
-            window.AudioManager.speakWord(words[idx]);
-            
-            // Wait roughly based on word length + pause
-            var delay = 800 + (words[idx].length * 50);
-            setTimeout(function() {
-                if (idx === words.length - 1) {
-                    spanWords[idx].style.color = 'white';
-                    spanWords[idx].style.transform = 'scale(1)';
+                if (k === idx) {
+                    spanWords[k].style.background = '#4CAF50';
+                    spanWords[k].style.color = 'white';
+                    spanWords[k].style.transform = 'scale(1.15)';
+                } else {
+                    spanWords[k].style.background = '#F5F5F5';
+                    spanWords[k].style.color = '#263238';
+                    spanWords[k].style.transform = 'scale(1)';
                 }
+            }
+
+            window.speechSynthesis.cancel();
+            window.AudioManager.speakWord(words[idx]);
+
+            var delay = 750 + (words[idx].length * 55);
+            setTimeout(function() {
                 idx++;
                 readNext();
             }, delay);
         }
-        
+
         readNext();
     };
 
     StoryReaderGame.prototype.prevPage = function() {
-        if (this.isReading) return;
         if (this.currentPageIndex > 0) {
             this.currentPageIndex--;
             this.renderPage();
@@ -209,17 +228,17 @@
     };
 
     StoryReaderGame.prototype.nextPage = function() {
-        if (this.isReading) return;
+        var self = this;
         if (this.currentPageIndex < this.currentStory.pages.length - 1) {
             this.currentPageIndex++;
             this.renderPage();
         } else {
-            // Finish
-            window.AudioManager.playLevelUp();
-            this.showCorrectOverlay("Harika!");
+            this.showCorrectFeedback(this.pageContainer);
+            this.showCorrectOverlay('Hikaye Bitti! Harikasın! 📖🌟');
             setTimeout(function() {
-                this.transitionToNextRound(this.setupStory.bind(this));
-            }.bind(this), 2000);
+                self.storyIndex = (self.storyIndex + 1) % self.stories.length;
+                self.startGameplay();
+            }, 2000);
         }
     };
 

@@ -1,8 +1,7 @@
 (function () {
     function LetterMatchGame(container, options) {
         window.BaseGame.call(this, container, options);
-        this.gameId = 'letter_match';
-        // Matris boyutu (4, 6, 8, 12)
+        this.gameId = 'letter-match';
         var savedSize = parseInt(localStorage.getItem('letter_match_matrix_size'), 10);
         this.totalCards = (savedSize === 4 || savedSize === 6 || savedSize === 8 || savedSize === 12) ? savedSize : 6;
     }
@@ -13,21 +12,32 @@
     LetterMatchGame.prototype.init = function () {
         window.BaseGame.prototype.init.call(this);
         
-        this.helpText = 'Kartları çevirerek aynı harfleri bul ve eşleştir! Yukarıdaki düğmelerden kart sayısını değiştirebilirsin.';
+        this.helpText = 'Kartları çevirerek aynı harfleri ve sevimli nesnelerini bulup eşleştir! Her kartta o harfle başlayan farklı bir nesne seni bekliyor.';
         this.helpIcon = '🃏';
         this.createHeader('Harf Eşleştirme 🃏');
 
         var self = this;
         var letters = window.GameData.getAllLetters();
-        var exLetters = letters.slice(0, 3);
+        var exLetters = window.GameData.pickUniqueItems('lmatch_intro', letters, 3);
         var examples = exLetters.map(function(l) {
-            return { text: l.toUpperCase() + ' ' + l, sound: l, type: 'letter', emoji: '🃏' };
+            var info = window.GameData.getLetterInfo(l);
+            var ex = (info && info.examples && info.examples.length)
+                ? window.GameData.pickUniqueItems('lmatch_intro_ex_' + l, info.examples, 1)[0]
+                : { word: l, emoji: '🃏' };
+            return {
+                text: window.Utils.toUpperTR(l) + ' ' + l + ' (' + ex.word + ')',
+                sound: l,
+                type: 'letter',
+                word: ex.word,
+                emoji: ex.emoji,
+                image: ex.image
+            };
         });
 
         this.showIntro({
-            title: 'Harf Eşleştirme! 🃏',
-            icon: '🃏',
-            description: 'Tüm alfabedeki harfleri eşleştireceğiz! Kartları çevir ve aynı iki harfi bul.',
+            title: 'Resimli Harf Eşleştirme! 🃏',
+            icon: 'oyuncak',
+            description: 'Kartları çevir, aynı harfleri ve o harfle başlayan eğlenceli nesneleri bulup eşleştir!',
             voiceText: 'Kartları çevir ve aynı harfleri bulup eşleştir!',
             examples: examples,
             onStart: function() {
@@ -39,31 +49,30 @@
     LetterMatchGame.prototype.startGameplay = function () {
         this.container.innerHTML = '';
         
-        // Üst panel: Kart Sayısı Seçici (2x2, 2x3, 2x4, 3x4)
         var controlsBar = window.Utils.createElement('div', 'match-controls-bar');
         controlsBar.style.cssText =
-            'display:flex;align-items:center;justify-content:center;gap:8px;padding:8px;' +
-            'background:rgba(0,0,0,0.15);width:100%;box-sizing:border-box;flex-wrap:wrap;';
+            'display:flex;align-items:center;justify-content:center;gap:8px;padding:6px 8px;' +
+            'background:rgba(0,0,0,0.18);width:100%;box-sizing:border-box;flex-wrap:wrap;flex-shrink:0;';
 
         var sizeLabel = window.Utils.createElement('span', 'size-label', 'Kart Sayısı:');
-        sizeLabel.style.cssText = 'color:white;font-weight:bold;font-size:clamp(13px, 2.5vw, 16px);margin-right:4px;';
+        sizeLabel.style.cssText = 'color:white;font-weight:bold;font-size:clamp(12px, 2.4vw, 15px);margin-right:4px;';
         controlsBar.appendChild(sizeLabel);
 
         var self = this;
         var sizes = [
-            { count: 4, label: '4 Kart (2x2)' },
-            { count: 6, label: '6 Kart (2x3)' },
-            { count: 8, label: '8 Kart (2x4)' },
-            { count: 12, label: '12 Kart (3x4)' }
+            { count: 4, label: '4 Kart' },
+            { count: 6, label: '6 Kart' },
+            { count: 8, label: '8 Kart' },
+            { count: 12, label: '12 Kart' }
         ];
 
         sizes.forEach(function(s) {
             var btn = window.Utils.createElement('button', 'size-btn', s.label);
             var isActive = (self.totalCards === s.count);
             btn.style.cssText =
-                'padding:6px 12px;border:none;border-radius:14px;font-weight:bold;cursor:pointer;' +
-                'font-size:clamp(12px, 2.3vw, 14px);transition:all 0.2s;' +
-                (isActive ? 'background:#4CAF50;color:white;box-shadow:0 2px 6px rgba(0,0,0,0.2);' : 'background:rgba(255,255,255,0.3);color:white;');
+                'padding:5px 12px;border:none;border-radius:14px;font-weight:bold;cursor:pointer;' +
+                'font-size:clamp(12px, 2.2vw, 14px);transition:all 0.2s;' +
+                (isActive ? 'background:#00E676;color:#1B5E20;box-shadow:0 2px 6px rgba(0,0,0,0.2);' : 'background:rgba(255,255,255,0.28);color:white;');
 
             btn.addEventListener('click', function() {
                 if (self.totalCards === s.count) return;
@@ -77,87 +86,107 @@
 
         this.gameArea = window.Utils.createElement('div', 'game-area letter-match-area');
         this.gameArea.style.cssText =
-            'position:relative;width:100%;flex:1;display:flex;justify-content:center;align-items:center;padding:12px;box-sizing:border-box;';
+            'position:relative;width:100%;flex:1;display:flex;justify-content:center;align-items:center;padding:10px;box-sizing:border-box;overflow:hidden;';
         this.container.appendChild(this.gameArea);
         
         this.startRound();
     };
 
+    LetterMatchGame.prototype.onResize = function () {
+        if (this.gameArea && this.running) {
+            this.startRound();
+        }
+    };
+
     LetterMatchGame.prototype.startRound = function () {
+        if (!this.gameArea) return;
         this.gameArea.innerHTML = '';
         this.flippedCards = [];
         this.matchedPairs = 0;
         this.lockBoard = false;
         
+        var rect = this.gameArea.getBoundingClientRect();
+        var areaW = rect.width || window.innerWidth;
+        var areaH = rect.height || window.innerHeight;
+
         var pairsNeeded = this.totalCards / 2;
         var allLetters = window.GameData.getAllLetters();
-        var shuffledAll = window.Utils.shuffle(allLetters.slice());
-        var selectedLetters = shuffledAll.slice(0, pairsNeeded);
+        var selectedLetters = window.GameData.pickUniqueItems('letter_match_pool', allLetters, pairsNeeded);
         
-        // Kart çiftleri oluştur
+        // Her harf çifti için o harfle başlayan 2 FARKLI eğlenceli nesne seç!
         var cards = [];
         selectedLetters.forEach(function(letter) {
-            var color = window.GameData.getRandomColor();
-            cards.push({ letter: letter, color: color, id: Math.random() });
-            cards.push({ letter: letter, color: color, id: Math.random() });
+            var info = window.GameData.getLetterInfo(letter);
+            var color = (info && info.color) || window.GameData.getRandomColor();
+            var exPair = (info && info.examples && info.examples.length >= 2)
+                ? window.GameData.pickUniqueItems('lmatch_ex_' + letter, info.examples, 2)
+                : [{ word: letter, emoji: '⭐' }, { word: letter, emoji: '🌟' }];
+            cards.push({ letter: letter, color: color, example: exPair[0], id: Math.random() });
+            cards.push({ letter: letter, color: color, example: exPair[1] || exPair[0], id: Math.random() });
         });
         
-        window.Utils.shuffle(cards);
+        cards = window.Utils.shuffle(cards);
         
-        // Izgara düzeni
-        var grid = window.Utils.createElement('div', 'cards-grid');
-        grid.style.cssText = 'display:grid;gap:12px;width:100%;max-width:650px;max-height:100%;justify-content:center;align-items:center;';
+        var cols = (this.totalCards === 4) ? 2 : (this.totalCards === 6 ? 3 : 4);
+        var rows = Math.ceil(this.totalCards / cols);
+        var gap = 12;
+        var maxCardW = Math.floor((Math.min(areaW - 24, 660) - (cols - 1) * gap) / cols);
+        var maxCardH = Math.floor((areaH - 24 - (rows - 1) * gap) / rows);
+        var cardW = Math.max(66, Math.min(maxCardW, Math.round(maxCardH * 0.85), 145));
+        var cardH = Math.max(82, Math.min(maxCardH, Math.round(cardW * 1.22), 175));
 
-        if (this.totalCards === 4) {
-            grid.style.gridTemplateColumns = 'repeat(2, 1fr)';
-        } else if (this.totalCards === 6) {
-            grid.style.gridTemplateColumns = 'repeat(3, 1fr)';
-        } else if (this.totalCards === 8) {
-            grid.style.gridTemplateColumns = 'repeat(4, 1fr)';
-        } else {
-            grid.style.gridTemplateColumns = 'repeat(4, 1fr)';
-        }
+        var grid = window.Utils.createElement('div', 'cards-grid');
+        grid.style.cssText =
+            'display:grid;grid-template-columns:repeat(' + cols + ', ' + cardW + 'px);' +
+            'gap:' + gap + 'px;justify-content:center;align-items:center;';
         
         var self = this;
-        var cardSize = Math.min(130, Math.max(70, Math.floor(400 / Math.ceil(this.totalCards / 3))));
 
         cards.forEach(function(cardData) {
             var card = window.Utils.createElement('div', 'memory-card');
             card.style.cssText =
-                'width:clamp(78px, 21.6vw, 144px);height:clamp(102px, 26.4vw, 174px);' +
-                'perspective:1000px;cursor:pointer;user-select:none;margin:auto;';
+                'width:' + cardW + 'px;height:' + cardH + 'px;' +
+                'perspective:1000px;cursor:pointer;user-select:none;';
 
             var inner = window.Utils.createElement('div', 'card-inner');
             inner.style.cssText =
-                'position:relative;width:100%;height:100%;text-align:center;transition:transform 0.4s;' +
-                'transform-style:preserve-3d;border-radius:18px;box-shadow:0 4px 10px rgba(0,0,0,0.15);';
+                'position:relative;width:100%;height:100%;text-align:center;transition:transform 0.45s cubic-bezier(0.175, 0.885, 0.32, 1.275);' +
+                'transform-style:preserve-3d;border-radius:20px;box-shadow:0 6px 14px rgba(0,0,0,0.2);';
 
-            // Arka yüz (Soru işareti)
-            var back = window.Utils.createElement('div', 'card-back', '❓');
+            var back = window.Utils.createElement('div', 'card-back', '🌟');
             back.style.cssText =
-                'position:absolute;width:100%;height:100%;backface-visibility:hidden;border-radius:18px;' +
-                'background:linear-gradient(135deg, #1E88E5, #1565C0);color:white;display:flex;' +
-                'align-items:center;justify-content:center;font-size:clamp(31px, 7.2vw, 50px);font-weight:bold;' +
-                'border:3px solid #90CAF9;';
+                'position:absolute;width:100%;height:100%;backface-visibility:hidden;border-radius:20px;' +
+                'background:linear-gradient(135deg, #29B6F6, #1565C0);color:white;display:flex;' +
+                'align-items:center;justify-content:center;font-size:' + Math.round(cardW * 0.42) + 'px;font-weight:bold;' +
+                'border:3px solid #B3E5FC;';
 
-            // Ön yüz (Harf)
             var displayUpper = window.Utils.toUpperTR(cardData.letter);
-            var front = window.Utils.createElement('div', 'card-front', displayUpper + ' ' + cardData.letter);
+            var front = window.Utils.createElement('div', 'card-front');
             front.style.cssText =
-                'position:absolute;width:100%;height:100%;backface-visibility:hidden;border-radius:18px;' +
-                'background:white;color:' + cardData.color + ';display:flex;align-items:center;justify-content:center;' +
-                'font-size:clamp(26px, 6.6vw, 43px);font-weight:900;transform:rotateY(180deg);' +
-                'border:4px solid ' + cardData.color + ';box-shadow:inset 0 0 10px rgba(0,0,0,0.05);';
+                'position:absolute;width:100%;height:100%;backface-visibility:hidden;border-radius:20px;' +
+                'background:white;color:' + cardData.color + ';display:flex;flex-direction:column;' +
+                'align-items:center;justify-content:center;gap:2px;transform:rotateY(180deg);' +
+                'border:4px solid ' + cardData.color + ';padding:4px;box-sizing:border-box;';
+
+            var objImg = window.SvgLetters.createObjectImage(cardData.example, Math.round(Math.min(cardW, cardH) * 0.46), { bg: false, animate: false });
+            var letterLbl = window.Utils.createElement('div', '', displayUpper + ' ' + cardData.letter);
+            letterLbl.style.cssText = 'font-size:' + Math.round(cardH * 0.22) + 'px;font-weight:900;line-height:1;';
+            var wordLbl = window.Utils.createElement('div', '', cardData.example.word.toUpperCase());
+            wordLbl.style.cssText = 'font-size:' + Math.max(9, Math.round(cardH * 0.1)) + 'px;font-weight:800;color:#555;max-width:95%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+
+            front.appendChild(objImg);
+            front.appendChild(letterLbl);
+            front.appendChild(wordLbl);
 
             inner.appendChild(back);
             inner.appendChild(front);
             card.appendChild(inner);
 
             card.dataset.letter = cardData.letter;
-            card.dataset.color = cardData.color;
+            card.dataset.word = cardData.example.word;
 
             card.addEventListener('click', function() {
-                self.flipCard(card, inner, cardData.letter);
+                self.flipCard(card, inner, cardData.letter, cardData.example.word);
             });
 
             grid.appendChild(card);
@@ -166,19 +195,17 @@
         this.gameArea.appendChild(grid);
     };
 
-    LetterMatchGame.prototype.flipCard = function(card, inner, letterText) {
+    LetterMatchGame.prototype.flipCard = function(card, inner, letterText, wordText) {
         if (this.lockBoard) return;
         if (card.dataset.flipped === 'true' || card.dataset.matched === 'true') return;
 
-        // Kart çevirildi
         inner.style.transform = 'rotateY(180deg)';
         card.dataset.flipped = 'true';
         
-        // Yumuşak çevirme sesi (geri bildirim sesini bastırmayacak)
         window.speechSynthesis.cancel();
-        window.AudioManager.speakLetter(letterText);
+        window.AudioManager.speakWord(wordText || letterText);
 
-        this.flippedCards.push({ card: card, inner: inner, letter: letterText });
+        this.flippedCards.push({ card: card, inner: inner, letter: letterText, word: wordText });
 
         if (this.flippedCards.length === 2) {
             this.lockBoard = true;
@@ -194,17 +221,14 @@
         var isMatch = (card1.letter === card2.letter);
 
         if (isMatch) {
-            // Eşleşme bulundu - Anında ses ve geri bildirim
-            window.AudioManager.playCorrect();
-            
             card1.card.dataset.matched = 'true';
             card2.card.dataset.matched = 'true';
             
             card1.card.style.pointerEvents = 'none';
             card2.card.style.pointerEvents = 'none';
 
+            this.showCorrectFeedback(card2.card);
             window.Utils.bounceElement(card1.card);
-            window.Utils.bounceElement(card2.card);
 
             self.matchedPairs++;
             self.flippedCards = [];
@@ -212,18 +236,16 @@
 
             var totalPairs = self.totalCards / 2;
             if (self.matchedPairs === totalPairs) {
-                self.showCorrectFeedback(self.gameArea);
                 setTimeout(function() {
-                    self.showCorrectOverlay('Tebrikler! 🎉');
+                    self.showCorrectOverlay('Süper Eşleştirme! 🎉', card2.word);
                     setTimeout(function() {
                         self.startRound();
-                    }, 1600);
-                }, 400);
+                    }, 1550);
+                }, 350);
             }
         } else {
-            // Eşleşmedi - Anında hata sesi
             window.AudioManager.playWrong();
-            setTimeout(function() { window.AudioManager.playZort(); }, 300);
+            setTimeout(function() { window.AudioManager.playZort(); }, 250);
             window.Utils.shakeElement(card1.card);
             window.Utils.shakeElement(card2.card);
 

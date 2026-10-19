@@ -3,7 +3,7 @@
 
     /**
      * Say ve Bul 🍎
-     * Ekrana gelen nesneleri sayıp doğru sayıyı bulma oyunu
+     * Ekrana gelen eğlenceli nesneleri sayıp doğru sayıyı bulma oyunu
      */
     function NumberCountGame(container, options) {
         window.BaseGame.call(this, container, options);
@@ -20,7 +20,7 @@
         window.BaseGame.prototype.init.call(this);
         this.container.style.backgroundColor = '#e8f5e9';
         
-        this.helpText = 'Ekranda kaç tane nesne olduğunu say! İstersen nesnelere dokunarak tek tek sayabilirsin. Sonra aşağıdaki doğru sayıya bas.';
+        this.helpText = 'Ekranda kaç tane sevimli nesne olduğunu say! Nesnelere dokunarak tek tek sayabilirsin. Sonra aşağıdaki doğru sayıya bas.';
         this.helpIcon = '🍎';
         this.createHeader('Say ve Bul 🍎');
 
@@ -31,8 +31,9 @@
             description: 'Ekranda kaç tane nesne var?\nNesnelere tek tek dokunarak say, sonra doğru sayıyı seç!',
             voiceText: 'Ekranda kaç tane nesne olduğunu say ve doğru sayıyı seç!',
             examples: [
-                { text: '3 Elma 🍎🍎🍎 → 3', sound: '3', emoji: '🍎' },
-                { text: '5 Yıldız ⭐⭐⭐⭐⭐ → 5', sound: '5', emoji: '⭐' }
+                { text: '3 Elma → 3', sound: '3', emoji: '🍎', asset: 'assets/images/objects/elma.svg' },
+                { text: '5 Dinozor → 5', sound: '5', emoji: '🦖', asset: 'assets/images/objects/dinozor.svg' },
+                { text: '7 Roket → 7', sound: '7', emoji: '🚀', asset: 'assets/images/objects/roket.svg' }
             ],
             onStart: function() {
                 self.startGameplay();
@@ -43,6 +44,7 @@
     NumberCountGame.prototype.startGameplay = function() {
         this.container.innerHTML = '';
         this.createHeader('Say ve Bul 🍎');
+        this.updateDimensions();
         
         this.gameArea = window.Utils.createElement('div', 'game-area number-count-area');
         this.gameArea.style.cssText =
@@ -58,28 +60,33 @@
         var self = this;
         this.gameArea.innerHTML = '';
         this.countedItems = 0;
+        this.updateDimensions();
 
-        // Düzeye göre sayı aralığı belirle
         var numbersList = window.GameData.getNumbers(this.level);
-        var targetItem = window.Utils.randomItem(numbersList);
+        var targetItem = window.GameData.getNextFromDeck('number-count-' + this.level, numbersList);
         this.targetNumber = targetItem.num;
-        var emoji = targetItem.emoji || '🍎';
+
+        // Her turda 30 farklı eğlenceli nesneden rastgele birini seç!
+        var randomObj = window.GameData.getRandomNumberObject();
+        var emoji = randomObj.emoji || targetItem.emoji || '🍎';
+        var asset = randomObj.asset || targetItem.asset || null;
+        var objName = randomObj.name || 'Nesne';
 
         // 1. Üst Kısım: Soru ve Dinle Butonu
         var topSection = window.Utils.createElement('div', 'count-top-section');
         topSection.style.cssText = 'display:flex;align-items:center;justify-content:center;gap:10px;width:100%;margin-bottom:8px;';
 
-        var questionLabel = window.Utils.createElement('div', 'count-question-label', 'Kaç tane var?');
-        questionLabel.style.cssText = 'font-size:clamp(18px, 4vw, 26px);font-weight:900;color:#2E7D32;';
+        var questionLabel = window.Utils.createElement('div', 'count-question-label', 'Kaç tane ' + objName + ' var?');
+        questionLabel.style.cssText = 'font-size:clamp(18px, 4vw, 26px);font-weight:900;color:#2E7D32;background:white;padding:6px 18px;border-radius:20px;box-shadow:0 3px 10px rgba(0,0,0,0.08);';
         topSection.appendChild(questionLabel);
 
         var listenBtn = window.Utils.createElement('button', 'count-listen-btn', '🔊');
         listenBtn.style.cssText =
-            'border:none;border-radius:50%;width:36px;height:36px;background:#4CAF50;color:white;' +
-            'font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,0.15);';
+            'border:none;border-radius:50%;width:38px;height:38px;background:#4CAF50;color:white;' +
+            'font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,0.15);';
         listenBtn.addEventListener('click', function() {
             window.speechSynthesis.cancel();
-            window.AudioManager.speakSentence('Kaç tane var? Nesneleri say ve bul!');
+            window.AudioManager.speakSentence('Ekranda kaç tane ' + objName + ' var?');
         });
         topSection.appendChild(listenBtn);
         this.gameArea.appendChild(topSection);
@@ -87,28 +94,26 @@
         // 2. Orta Kısım: Sayılacak Nesneler Alanı
         var objectsArea = window.Utils.createElement('div', 'count-objects-area');
         objectsArea.style.cssText =
-            'flex:1;display:flex;flex-wrap:wrap;gap:8px;justify-content:center;align-items:center;' +
-            'width:100%;max-width:550px;background:white;border-radius:24px;padding:12px;box-sizing:border-box;' +
-            'box-shadow:0 6px 18px rgba(0,0,0,0.08);overflow-y:auto;max-height:48vh;border:3px solid #C8E6C9;';
+            'flex:1;display:flex;flex-wrap:wrap;gap:10px;justify-content:center;align-items:center;' +
+            'width:100%;max-width:560px;background:white;border-radius:26px;padding:14px;box-sizing:border-box;' +
+            'box-shadow:0 6px 18px rgba(0,0,0,0.08);overflow-y:auto;max-height:48vh;border:4px solid #A5D6A7;';
 
-        var sizeClass = this.targetNumber > 18 ? 'clamp(22px, 5vw, 32px)' : (this.targetNumber > 10 ? 'clamp(28px, 6.5vw, 42px)' : 'clamp(36px, 8.5vw, 54px)');
+        var itemPx = this.targetNumber > 18 ? 40 : (this.targetNumber > 10 ? 52 : 68);
 
         for (var i = 1; i <= this.targetNumber; i++) {
-            (function(idx) {
+            (function() {
                 var objWrap = window.Utils.createElement('div', 'count-obj-wrap');
                 objWrap.style.cssText =
                     'position:relative;display:flex;align-items:center;justify-content:center;cursor:pointer;user-select:none;' +
                     'padding:4px;transition:transform 0.15s;';
 
-                var objEmoji = window.Utils.createElement('div', 'count-emoji', emoji);
-                objEmoji.style.cssText = 'font-size:' + sizeClass + ';line-height:1;';
-                objWrap.appendChild(objEmoji);
+                var svgImg = window.SvgLetters.createEmojiImage(emoji, itemPx, asset);
+                objWrap.appendChild(svgImg);
 
-                // Dokunulduğunda çıkan sayı rozeti
                 var badge = window.Utils.createElement('div', 'count-badge');
                 badge.style.cssText =
                     'position:absolute;top:-4px;right:-4px;background:#FF5722;color:white;border-radius:50%;' +
-                    'width:20px;height:20px;font-size:11px;font-weight:bold;display:none;align-items:center;justify-content:center;box-shadow:0 2px 4px rgba(0,0,0,0.2);';
+                    'width:24px;height:24px;font-size:13px;font-weight:900;display:none;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,0.25);z-index:5;';
                 objWrap.appendChild(badge);
 
                 objWrap.addEventListener('click', function() {
@@ -117,7 +122,7 @@
                         self.countedItems++;
                         badge.textContent = String(self.countedItems);
                         badge.style.display = 'flex';
-                        window.Utils.bounceElement(objWrap);
+                        window.Utils.celebrateElement(objWrap);
                         window.AudioManager.playPop();
                         window.speechSynthesis.cancel();
                         window.AudioManager.speakNumber(self.countedItems);
@@ -136,7 +141,6 @@
         optionsContainer.style.cssText =
             'display:grid;grid-template-columns:repeat(4, 1fr);gap:10px;width:100%;max-width:480px;margin-top:12px;';
 
-        // 3 çeldirici üret
         var distractors = [];
         var maxPossible = Math.max(10, Math.min(30, this.targetNumber + 5));
         var minPossible = Math.max(1, this.targetNumber - 5);
@@ -148,13 +152,12 @@
             }
         }
 
-        var allChoices = [this.targetNumber].concat(distractors);
-        allChoices = window.Utils.shuffle(allChoices);
+        var allChoices = window.Utils.shuffle([this.targetNumber].concat(distractors));
 
         allChoices.forEach(function(choice) {
             var btn = window.Utils.createElement('button', 'count-choice-btn', String(choice));
             btn.style.cssText =
-                'padding:12px 6px;border:4px solid #4CAF50;border-radius:18px;background:white;' +
+                'padding:12px 6px;border:4px solid #4CAF50;border-radius:20px;background:white;' +
                 'color:#2E7D32;font-size:clamp(22px, 5.5vw, 36px);font-weight:900;cursor:pointer;' +
                 'box-shadow:0 4px 10px rgba(0,0,0,0.1);transition:transform 0.15s, background-color 0.2s;user-select:none;';
 
@@ -175,7 +178,7 @@
 
                     setTimeout(function() {
                         self.nextRound();
-                    }, 1400);
+                    }, 1450);
                 } else {
                     btn.style.background = '#F44336';
                     btn.style.borderColor = '#C62828';
@@ -198,11 +201,10 @@
 
         this.gameArea.appendChild(optionsContainer);
 
-        // Başlangıç yönergesi
         setTimeout(function() {
             if (!self.running) return;
             window.speechSynthesis.cancel();
-            window.AudioManager.speakSentence('Kaç tane var?');
+            window.AudioManager.speakSentence('Kaç tane ' + objName + ' var?');
         }, 300);
     };
 

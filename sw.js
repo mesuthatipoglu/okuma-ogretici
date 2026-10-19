@@ -3,7 +3,7 @@
  * Offline çalışma için tüm uygulama dosyalarını önbelleğe alır
  */
 
-var CACHE_NAME = 'okuma-ogretici-v1.5.3-20260916';
+var CACHE_NAME = 'okuma-ogretici-v2.1.0-202610200030';
 
 var ASSETS_TO_CACHE = [
     './',
@@ -20,15 +20,18 @@ var ASSETS_TO_CACHE = [
     'js/app.js',
     'js/games/base-game.js',
     'js/games/letter-learn.js',
+    'js/games/first-letter.js',
     'js/games/balloon-pop.js',
     'js/games/letter-hunt.js',
     'js/games/letter-paint.js',
     'js/games/letter-match.js',
     'js/games/letter-sort.js',
     'js/games/syllable-train.js',
+    'js/games/syllable-wheel.js',
     'js/games/syllable-match.js',
     'js/games/syllable-pop.js',
     'js/games/syllable-box.js',
+    'js/games/missing-syllable.js',
     'js/games/word-puzzle.js',
     'js/games/word-match.js',
     'js/games/word-hunt.js',
@@ -39,6 +42,8 @@ var ASSETS_TO_CACHE = [
     'js/games/number-pop.js',
     'js/games/sentence-train.js',
     'js/games/story-reader.js',
+    'js/games/shadow-match.js',
+    'js/games/odd-one-out.js',
     'assets/images/icons/icon.png',
     'assets/images/icons/icon-512.png',
     'assets/images/icons/icon-192.png',

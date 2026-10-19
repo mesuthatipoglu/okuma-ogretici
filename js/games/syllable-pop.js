@@ -15,21 +15,28 @@
         window.BaseGame.prototype.init.call(this);
         
         this.container.innerHTML = '';
-        this.helpText = 'Yukarıda yazan heceyi dinle ve uçan baloncuklar arasından onu patlat!';
+        this.helpText = 'Yukarıda yazan heceyi ve sevimli nesnesini dinle, uçan baloncuklar arasından onu patlat!';
         this.helpIcon = '🫧';
         this.createHeader('Hece Baloncukları 🫧');
 
         var self = this;
-        var syllables = window.GameData.generateSyllables(this.maxGroup);
-        var exSyls = (syllables && syllables.length >= 3) ? syllables.slice(0, 3) : [{text: 'el'}, {text: 'al'}, {text: 'le'}];
+        var syllables = window.Utils.shuffle(window.GameData.generateSyllables(6).slice());
+        var exSyls = syllables.slice(0, 3);
         var examples = exSyls.map(function(s) {
-            return { text: s.text.toUpperCase() + ' (' + s.text + ')', sound: s.text, type: 'syllable', emoji: '🫧' };
+            var obj = window.GameData.getSyllableObject(s.text);
+            return {
+                text: window.Utils.toUpperTR(s.text) + ' (' + obj.word + ')',
+                sound: s.text,
+                type: 'syllable',
+                emoji: obj.emoji,
+                asset: obj.asset
+            };
         });
 
         this.showIntro({
             title: 'Hece Baloncukları! 🫧',
             icon: '🫧',
-            description: 'Uçan baloncukların içinde heceler var! Yukarıdaki heceyi dinle ve doğru balona dokunarak patlat.',
+            description: 'Uçan baloncukların içinde heceler ve sevimli nesneler var! Yukarıdaki heceyi dinle ve doğru balona dokunarak patlat.',
             voiceText: 'Yukarıdaki heceyi dinle ve doğru balona dokunarak patlat!',
             examples: examples,
             onStart: function() {
@@ -41,25 +48,24 @@
     SyllablePopGame.prototype.startGameplay = function () {
         var self = this;
         this.container.innerHTML = '';
+        this.updateDimensions();
         this.gameArea = window.Utils.createElement('div', 'game-area syllable-pop-area');
         this.gameArea.style.cssText =
             'position:relative;width:100%;flex:1;overflow:hidden;background:#e0f7fa;box-sizing:border-box;';
         this.container.appendChild(this.gameArea);
         
-        // Hedef Gösterge Alanı (Üstte)
         this.targetArea = window.Utils.createElement('div', 'target-area');
         this.targetArea.style.cssText =
             'position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:10;' +
-            'display:flex;align-items:center;gap:12px;padding:8px 24px;' +
-            'background:white;border-radius:30px;box-shadow:0 4px 12px rgba(0,0,0,0.15);';
+            'display:flex;align-items:center;gap:12px;padding:8px 22px;' +
+            'background:white;border-radius:30px;box-shadow:0 4px 12px rgba(0,0,0,0.15);border:3px solid #00ACC1;';
         
-        this.targetLabel = window.Utils.createElement('span', 'target-label', 'Hedef:');
-        this.targetLabel.style.cssText = 'font-size:clamp(13px, 2.8vw, 16px);color:#666;font-weight:bold;';
-        this.targetArea.appendChild(this.targetLabel);
+        this.targetObjHolder = window.Utils.createElement('div', 'target-obj-holder');
+        this.targetArea.appendChild(this.targetObjHolder);
 
         this.targetText = window.Utils.createElement('div', 'target-text');
         this.targetText.style.cssText =
-            'font-size:clamp(28px, 6vw, 42px);font-weight:900;color:#00838F;min-width:60px;text-align:center;';
+            'font-size:clamp(26px, 5.5vw, 40px);font-weight:900;color:#00838F;min-width:60px;text-align:center;';
         this.targetArea.appendChild(this.targetText);
         
         var replayBtn = window.Utils.createElement('button', 'replay-btn', '🔊');
@@ -79,23 +85,19 @@
         
         this.bubbles = [];
         this.completed = false;
-        this._syllablePool = [];
 
         for (var i = 0; i < 5; i++) {
             this.spawnBubble(this.getNextSyllable(), true);
         }
 
-        // Ekrandaki balonlardan birini hedef seç
         var active = this.bubbles.filter(function(b) { return !b.popped; });
         if (active.length > 0) {
             this.setNewTarget(active[0].text);
         }
 
-        // Sürekli balon döngüsü ve spawner
         this.lastTime = performance.now();
         this.animateBubbles();
 
-        // Her 2.5 saniyede bir eksik balonları tamamla
         this.spawnTimer = setInterval(function() {
             if (!self.running) return;
             var currentActive = self.bubbles.filter(function(b) { return !b.popped; });
@@ -106,24 +108,17 @@
     };
 
     SyllablePopGame.prototype.getNextSyllable = function() {
-        if (!this._syllablePool || this._syllablePool.length === 0) {
-            var syls = window.GameData.generateSyllables(Math.max(this.maxGroup || 1, 2));
-            if (!syls || syls.length < 6) {
-                syls = window.GameData.generateSyllables(3);
-            }
-            if (!syls || syls.length === 0) {
-                syls = [{text:'el'}, {text:'le'}, {text:'al'}, {text:'la'}, {text:'ek'}, {text:'ke'}];
-            }
-            this._syllablePool = window.Utils.shuffle(syls.slice());
-        }
-        var item = this._syllablePool.pop();
+        var syls = window.GameData.generateSyllables(this.maxGroup);
+        var item = window.GameData.getNextFromDeck('syllable-pop-deck', syls);
         return typeof item === 'object' ? item.text : item;
     };
 
     SyllablePopGame.prototype.setNewTarget = function(syllableText) {
-        var self = this;
         this.targetSyllable = syllableText;
-        this.targetText.textContent = syllableText.toUpperCase();
+        var obj = window.GameData.getSyllableObject(syllableText);
+        this.targetObjHolder.innerHTML = '';
+        this.targetObjHolder.appendChild(window.SvgLetters.createEmojiImage(obj.emoji, 40, obj.asset));
+        this.targetText.textContent = window.Utils.toUpperTR(syllableText);
         window.Utils.pulseElement(this.targetArea);
 
         setTimeout(function() {
@@ -139,8 +134,8 @@
         var height = gameRect.height || this.gameArea.clientHeight || window.innerHeight;
         
         var bubbleSize = Math.min(width, height) * 0.18;
-        bubbleSize = Math.max(bubbleSize, 65);
-        bubbleSize = Math.min(bubbleSize, 110);
+        bubbleSize = Math.max(bubbleSize, 68);
+        bubbleSize = Math.min(bubbleSize, 112);
 
         var color = window.GameData.getRandomColor();
         var bubbleEl = window.SvgLetters.createSyllableCard(syllableText, bubbleSize, color);
@@ -157,8 +152,7 @@
         bubbleEl.style.left = x + 'px';
         bubbleEl.style.top = y + 'px';
 
-        // Canlı, eğlenceli ve akıcı hız (önceki hantal hız yerine)
-        var speedY = -(Math.random() * 0.7 + 0.85); // ~1.2 px/frame
+        var speedY = -(Math.random() * 0.65 + 0.8);
         var speedX = (Math.random() - 0.5) * 0.4;
         var phase = Math.random() * Math.PI * 2;
 
@@ -203,7 +197,6 @@
                 b.phase += 0.04 * factor;
                 var currentX = b.x + Math.sin(b.phase) * 18;
 
-                // Ekranın üstünden çıkınca alt kısımdan tekrar başlasın
                 if (b.y < -b.size) {
                     b.y = height + 40;
                     b.x = Math.random() * (width - b.size);
@@ -227,28 +220,31 @@
             bubbleData.popped = true;
             this.completed = true;
 
-            // 1. Balonun tam patladığı yerdeki koordinatları al
             var bRect = bubbleData.el.getBoundingClientRect();
             var areaRect = self.gameArea.getBoundingClientRect();
             var popX = (bRect.left - areaRect.left) + bRect.width / 2;
             var popY = (bRect.top - areaRect.top) + bRect.height / 2;
 
-            // Patladığı yerde anında parlayan yıldız efekti
-            var burstStar = window.Utils.createElement('div', 'pop-star', '⭐');
-            burstStar.style.cssText =
-                'position:absolute;left:' + (popX - 25) + 'px;top:' + (popY - 25) + 'px;' +
-                'font-size:45px;pointer-events:none;z-index:200;';
-            self.gameArea.appendChild(burstStar);
+            var sylObj = window.GameData.getSyllableObject(bubbleData.text);
+            var burstBadge = window.Utils.createElement('div', 'pop-obj-surprise');
+            burstBadge.style.cssText =
+                'position:absolute;left:' + Math.max(10, popX - 45) + 'px;top:' + Math.max(10, popY - 45) + 'px;' +
+                'background:white;padding:6px 12px;border-radius:20px;box-shadow:0 8px 20px rgba(0,0,0,0.2);' +
+                'display:flex;flex-direction:column;align-items:center;pointer-events:none;z-index:200;';
+            burstBadge.appendChild(window.SvgLetters.createEmojiImage(sylObj.emoji, 52, sylObj.asset));
+            var bLbl = window.Utils.createElement('span', '', sylObj.word);
+            bLbl.style.cssText = 'font-size:13px;font-weight:900;color:#00838F;';
+            burstBadge.appendChild(bLbl);
+            self.gameArea.appendChild(burstBadge);
 
-            burstStar.animate([
-                { transform: 'scale(0.3) rotate(0deg)', opacity: 1 },
-                { transform: 'scale(1.3) translateY(-25px) rotate(180deg)', opacity: 1, offset: 0.6 },
-                { transform: 'scale(0.8) translateY(-40px) rotate(360deg)', opacity: 0 }
-            ], { duration: 700, easing: 'ease-out' }).onfinish = function() {
-                if (burstStar.parentNode) burstStar.parentNode.removeChild(burstStar);
+            burstBadge.animate([
+                { transform: 'scale(0.3)', opacity: 1 },
+                { transform: 'scale(1.2) translateY(-25px)', opacity: 1, offset: 0.6 },
+                { transform: 'scale(0.8) translateY(-45px)', opacity: 0 }
+            ], { duration: 1100, easing: 'ease-out' }).onfinish = function() {
+                if (burstBadge.parentNode) burstBadge.parentNode.removeChild(burstBadge);
             };
 
-            // Patlama animasyonu
             bubbleData.el.style.transform = 'scale(1.6)';
             bubbleData.el.style.opacity = '0';
             window.AudioManager.playPop();
@@ -260,21 +256,18 @@
                     bubbleData.el.parentNode.removeChild(bubbleData.el);
                 }
                 
-                // Balon listesini temizle
                 self.bubbles = self.bubbles.filter(function(b) { return !b.popped; });
 
-                // Kullanıcının istediği gibi: Ekrandaki mevcut balonlardan yeni hedef seç!
                 if (self.bubbles.length > 0) {
                     var nextTargetBubble = window.Utils.randomItem(self.bubbles);
                     self.setNewTarget(nextTargetBubble.text);
                 } else {
-                    // Ekrandaki tüm balonlar bitmişse hemen yeni bir balon yarat ve hedef yap
                     var spawned = self.spawnBubble(self.getNextSyllable(), false);
                     self.setNewTarget(spawned.text);
                 }
 
                 self.completed = false;
-            }, 600);
+            }, 650);
 
         } else {
             window.AudioManager.playWrong();

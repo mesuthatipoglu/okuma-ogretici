@@ -8,7 +8,7 @@ window.Progress = (function () {
     var STORAGE_KEY = 'okuma-ogretici-progress';
 
     var defaultData = {
-        maxGroup: 1,
+        maxGroup: 6,
         sequentialMode: false,
         sequentialStep: 0,
         stars: {},
@@ -29,8 +29,7 @@ window.Progress = (function () {
             var stored = localStorage.getItem(STORAGE_KEY);
             if (stored) {
                 var parsed = JSON.parse(stored);
-                // Varsayılan değerlerle birleştir (eksik alanlar için)
-                return Object.assign({}, defaultData, parsed);
+                return Object.assign({}, defaultData, parsed, { maxGroup: 6 });
             }
         } catch (e) {
             console.warn('İlerleme verisi yüklenemedi:', e);
@@ -56,7 +55,7 @@ window.Progress = (function () {
     // ────────────────────────────────────────────
 
     function getMaxGroup() {
-        return data.maxGroup || 1;
+        return 6;
     }
 
     function setMaxGroup(group) {

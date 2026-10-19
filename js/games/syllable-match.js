@@ -12,21 +12,28 @@
     SyllableMatchGame.prototype.init = function () {
         window.BaseGame.prototype.init.call(this);
         
-        this.helpText = 'Kartları çevirerek aynı heceleri bul ve eşleştir! Yukarıdan kart sayısını değiştirebilirsin.';
+        this.helpText = 'Kartları çevirerek aynı heceleri ve sevimli nesnelerini bulup eşleştir! Yukarıdan kart sayısını değiştirebilirsin.';
         this.helpIcon = '🃏';
         this.createHeader('Hece Eşleştirme 🃏');
 
         var self = this;
-        var syllables = window.GameData.generateSyllables(this.maxGroup);
-        var exSyls = (syllables && syllables.length >= 3) ? syllables.slice(0, 3) : [{text: 'el'}, {text: 'al'}, {text: 'le'}];
+        var syllables = window.Utils.shuffle(window.GameData.generateSyllables(6).slice());
+        var exSyls = syllables.slice(0, 3);
         var examples = exSyls.map(function(s) {
-            return { text: s.text.toUpperCase() + ' (' + s.text + ')', sound: s.text, type: 'syllable', emoji: '🃏' };
+            var obj = window.GameData.getSyllableObject(s.text);
+            return {
+                text: window.Utils.toUpperTR(s.text) + ' (' + obj.word + ')',
+                sound: s.text,
+                type: 'syllable',
+                emoji: obj.emoji,
+                asset: obj.asset
+            };
         });
 
         this.showIntro({
             title: 'Hece Eşleştirme! 🃏',
             icon: '🃏',
-            description: 'Kartların arkasında heceler gizli! Kartları çevirerek aynı iki heceyi bul ve eşleştir.',
+            description: 'Kartların arkasında renkli heceler ve eğlenceli nesneler gizli! Kartları çevirerek aynı iki heceyi bul ve eşleştir.',
             voiceText: 'Kartları çevir ve aynı heceleri bulup eşleştir!',
             examples: examples,
             onStart: function() {
@@ -37,8 +44,8 @@
 
     SyllableMatchGame.prototype.startGameplay = function () {
         this.container.innerHTML = '';
+        this.updateDimensions();
         
-        // Üst panel: Kart Sayısı Seçici (4, 6, 8, 12)
         var controlsBar = window.Utils.createElement('div', 'match-controls-bar');
         controlsBar.style.cssText =
             'display:flex;align-items:center;justify-content:center;gap:8px;padding:8px;' +
@@ -90,22 +97,25 @@
         
         var pairsNeeded = this.totalCards / 2;
         var allSyllables = window.GameData.generateSyllables(this.maxGroup);
-        if (!allSyllables || allSyllables.length < pairsNeeded) {
-            allSyllables = [
-                { text: 'el' }, { text: 'le' }, { text: 'al' },
-                { text: 'la' }, { text: 'ek' }, { text: 'ke' }
-            ];
+        var selectedSyllables = [];
+        var usedTexts = {};
+        var safety = 0;
+        while (selectedSyllables.length < pairsNeeded && safety < 100) {
+            var item = window.GameData.getNextFromDeck('syllable-match-deck', allSyllables);
+            var txt = typeof item === 'object' ? item.text : item;
+            if (!usedTexts[txt]) {
+                usedTexts[txt] = true;
+                selectedSyllables.push(txt);
+            }
+            safety++;
         }
         
-        var shuffledAll = window.Utils.shuffle(allSyllables.slice());
-        var selectedSyllables = shuffledAll.slice(0, pairsNeeded);
-        
         var cards = [];
-        selectedSyllables.forEach(function(syl) {
+        selectedSyllables.forEach(function(text) {
             var color = window.GameData.getRandomColor();
-            var text = typeof syl === 'object' ? syl.text : syl;
-            cards.push({ syllable: text, color: color, id: Math.random() });
-            cards.push({ syllable: text, color: color, id: Math.random() });
+            var sylObj = window.GameData.getSyllableObject(text);
+            cards.push({ syllable: text, color: color, obj: sylObj, id: Math.random() });
+            cards.push({ syllable: text, color: color, obj: sylObj, id: Math.random() });
         });
         
         window.Utils.shuffle(cards);
@@ -117,8 +127,6 @@
             grid.style.gridTemplateColumns = 'repeat(2, 1fr)';
         } else if (this.totalCards === 6) {
             grid.style.gridTemplateColumns = 'repeat(3, 1fr)';
-        } else if (this.totalCards === 8) {
-            grid.style.gridTemplateColumns = 'repeat(4, 1fr)';
         } else {
             grid.style.gridTemplateColumns = 'repeat(4, 1fr)';
         }
@@ -127,7 +135,7 @@
         cards.forEach(function(cardData) {
             var card = window.Utils.createElement('div', 'memory-card');
             card.style.cssText =
-                'width:clamp(65px, 18vw, 120px);height:clamp(85px, 22vw, 145px);' +
+                'width:clamp(68px, 18vw, 122px);height:clamp(90px, 23vw, 150px);' +
                 'perspective:1000px;cursor:pointer;user-select:none;margin:auto;';
 
             var inner = window.Utils.createElement('div', 'card-inner');
@@ -135,19 +143,28 @@
                 'position:relative;width:100%;height:100%;text-align:center;transition:transform 0.4s;' +
                 'transform-style:preserve-3d;border-radius:18px;box-shadow:0 4px 10px rgba(0,0,0,0.15);';
 
-            var back = window.Utils.createElement('div', 'card-back', '❓');
+            var back = window.Utils.createElement('div', 'card-back', '🌟');
             back.style.cssText =
                 'position:absolute;width:100%;height:100%;backface-visibility:hidden;border-radius:18px;' +
                 'background:linear-gradient(135deg, #7B1FA2, #512DA8);color:white;display:flex;' +
                 'align-items:center;justify-content:center;font-size:clamp(26px, 6vw, 42px);font-weight:bold;' +
                 'border:3px solid #CE93D8;';
 
-            var front = window.Utils.createElement('div', 'card-front', cardData.syllable.toUpperCase());
+            var front = window.Utils.createElement('div', 'card-front');
             front.style.cssText =
                 'position:absolute;width:100%;height:100%;backface-visibility:hidden;border-radius:18px;' +
-                'background:white;color:' + cardData.color + ';display:flex;align-items:center;justify-content:center;' +
-                'font-size:clamp(24px, 5.5vw, 38px);font-weight:900;transform:rotateY(180deg);' +
-                'border:4px solid ' + cardData.color + ';box-shadow:inset 0 0 10px rgba(0,0,0,0.05);';
+                'background:white;color:' + cardData.color + ';display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;' +
+                'transform:rotateY(180deg);border:4px solid ' + cardData.color + ';box-shadow:inset 0 0 10px rgba(0,0,0,0.05);padding:4px;box-sizing:border-box;';
+
+            var objIcon = window.SvgLetters.createEmojiImage(cardData.obj.emoji, 42, cardData.obj.asset);
+            var sylTitle = window.Utils.createElement('div', '', window.Utils.toUpperTR(cardData.syllable));
+            sylTitle.style.cssText = 'font-size:clamp(20px, 4.8vw, 32px);font-weight:900;line-height:1;';
+            var objSub = window.Utils.createElement('div', '', cardData.obj.word);
+            objSub.style.cssText = 'font-size:clamp(10px, 2vw, 13px);font-weight:800;color:#546E7A;';
+
+            front.appendChild(objIcon);
+            front.appendChild(sylTitle);
+            front.appendChild(objSub);
 
             inner.appendChild(back);
             inner.appendChild(front);
@@ -200,8 +217,8 @@
             card1.card.style.pointerEvents = 'none';
             card2.card.style.pointerEvents = 'none';
 
-            window.Utils.bounceElement(card1.card);
-            window.Utils.bounceElement(card2.card);
+            window.Utils.celebrateElement(card1.card);
+            window.Utils.celebrateElement(card2.card);
 
             self.matchedPairs++;
             self.flippedCards = [];
@@ -211,7 +228,7 @@
             if (self.matchedPairs === totalPairs) {
                 self.showCorrectFeedback(self.gameArea);
                 setTimeout(function() {
-                    self.showCorrectOverlay('Tebrikler! 🎉');
+                    self.showCorrectOverlay('Harika Eşleştirdin! 🎉');
                     setTimeout(function() {
                         self.startRound();
                     }, 1600);

@@ -13,22 +13,28 @@
     WordPuzzleGame.prototype.init = function() {
         window.BaseGame.prototype.init.call(this);
         
-        this.helpText = 'Heceleri sürükleyerek yukarıdaki boş kutulara doğru sırayla yerleştir ve kelimeyi oluştur!';
+        this.helpText = 'Hecelere dokunarak veya sürükleyerek yukarıdaki boş kutulara doğru sırayla yerleştir ve kelimeyi oluştur!';
         this.helpIcon = '🧩';
-        this.createHeader("Kelime Yapboz 🧩");
+        this.createHeader('Kelime Yapboz 🧩');
 
         var self = this;
-        var words = window.GameData.getAllWords();
+        var words = window.Utils.shuffle(window.GameData.getAllWords().slice());
         var exWords = words.slice(0, 3);
         var examples = exWords.map(function(w) {
-            return { text: w.word.toUpperCase(), sound: w.word, type: 'word', emoji: w.emoji || '📖' };
+            return {
+                text: window.Utils.toUpperTR(w.word) + ' (' + w.syllables.join('-').toUpperCase() + ')',
+                sound: w.word,
+                type: 'word',
+                emoji: w.emoji || '🧩',
+                asset: w.asset || null
+            };
         });
 
         this.showIntro({
             title: 'Kelimeleri Oluşturalım! 🧩',
             icon: '🧩',
-            description: 'Tüm kelimeleri hecelerine ayırdık! Aşağıdaki heceleri yukarıdaki boş kutulara sürükle ve kelimeleri tamamla.',
-            voiceText: 'Aşağıdaki heceleri kutucuklara sürükle ve kelimeleri tamamla!',
+            description: 'Kelimeleri hecelerine ayırdık! Aşağıdaki hecelere dokunarak veya kutulara sürükleyerek kelimeleri tamamla.',
+            voiceText: 'Aşağıdaki heceleri kutucuklara yerleştir ve kelimeleri tamamla!',
             examples: examples,
             onStart: function() {
                 self.startGameplay();
@@ -38,10 +44,11 @@
 
     WordPuzzleGame.prototype.startGameplay = function() {
         this.container.innerHTML = '';
-        this.gameArea = window.Utils.createElement("div", "game-area");
+        this.updateDimensions();
+        this.gameArea = window.Utils.createElement('div', 'game-area');
         this.gameArea.style.cssText =
             'display:flex;flex-direction:column;align-items:center;justify-content:space-evenly;' +
-            'width:100%;height:100%;position:relative;padding:16px;box-sizing:border-box;';
+            'width:100%;height:100%;position:relative;padding:14px;box-sizing:border-box;overflow:hidden;';
         this.container.appendChild(this.gameArea);
         
         this.nextRound();
@@ -53,19 +60,10 @@
         this.filledCount = 0;
         this.slots = [];
         this.draggableCards = [];
+        this.updateDimensions();
         
-        // 100+ kelime havuzundan çek - tek heceli kelimelerin de düzenli gelmesini garanti et
         var availableWords = window.GameData.getAllWords();
-        var singleSyllables = availableWords.filter(function(w) {
-            return w.syllables && w.syllables.length === 1;
-        });
-        
-        // Her 3 turdan birinde veya %30 olasılıkla tek heceli kelime seç
-        if (singleSyllables.length > 0 && (this.round % 3 === 0 || Math.random() < 0.3)) {
-            this.currentWord = window.Utils.randomItem(singleSyllables);
-        } else {
-            this.currentWord = window.Utils.randomItem(availableWords);
-        }
+        this.currentWord = window.GameData.getNextFromDeck('word-puzzle-deck', availableWords);
         
         this.transitionToNextRound(function() {
             self.renderGame();
@@ -76,30 +74,31 @@
 
     WordPuzzleGame.prototype.renderGame = function() {
         var self = this;
-        this.gameArea.innerHTML = "";
+        this.gameArea.innerHTML = '';
         
-        // 1. Üst Kısım: Emoji Resim ve Ses Dinleme
-        var imageArea = window.Utils.createElement("div", "puzzle-image-area");
-        imageArea.style.cssText = 'display:flex;flex-direction:column;align-items:center;margin-bottom:12px;';
+        // 1. Üst Kısım: Vektör Resim ve Ses Dinleme
+        var imageArea = window.Utils.createElement('div', 'puzzle-image-area');
+        imageArea.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:8px;';
         
-        var emojiObj = window.SvgLetters.createEmojiImage(this.currentWord.emoji || "❓", 90);
-        emojiObj.style.cursor = "pointer";
-        emojiObj.style.filter = "drop-shadow(0 4px 10px rgba(0,0,0,0.2))";
-        emojiObj.addEventListener("click", function() {
+        var imgSize = Math.min(115, Math.max(80, Math.round(this.dims.height * 0.2)));
+        var emojiObj = window.SvgLetters.createEmojiImage(this.currentWord.emoji || '❓', imgSize, this.currentWord.asset);
+        emojiObj.style.cursor = 'pointer';
+        emojiObj.addEventListener('click', function() {
             window.speechSynthesis.cancel();
             window.AudioManager.speakWord(self.currentWord.word);
-            window.Utils.pulseElement(emojiObj);
+            window.Utils.celebrateElement(emojiObj);
         });
         imageArea.appendChild(emojiObj);
+        this.currentImageEl = emojiObj;
 
-        var soundHint = window.Utils.createElement("button", "puzzle-sound-btn", "🔊 Dinle");
+        var soundHint = window.Utils.createElement('button', 'puzzle-sound-btn', '🔊 Dinle');
         soundHint.style.cssText =
             'border:none;border-radius:20px;background:#FF9800;color:white;font-weight:bold;' +
-            'padding:6px 18px;margin-top:8px;cursor:pointer;box-shadow:0 3px 6px rgba(0,0,0,0.15);';
-        soundHint.addEventListener("click", function() {
+            'padding:6px 18px;cursor:pointer;box-shadow:0 3px 6px rgba(0,0,0,0.15);font-size:15px;';
+        soundHint.addEventListener('click', function() {
             window.speechSynthesis.cancel();
             window.AudioManager.speakWord(self.currentWord.word);
-            window.Utils.pulseElement(emojiObj);
+            window.Utils.celebrateElement(emojiObj);
         });
         imageArea.appendChild(soundHint);
 
@@ -107,27 +106,26 @@
         
         // 2. Orta Kısım: Hedef Boş Yuvalar (Slots)
         var syllables = this.currentWord.syllables || [this.currentWord.word];
-        var slotWidth = Math.min(130, Math.max(80, Math.floor(400 / syllables.length)));
-        var slotHeight = Math.floor(slotWidth * 0.85);
+        var slotWidth = Math.min(130, Math.max(78, Math.floor((this.dims.width - 60) / Math.max(2, syllables.length))));
+        var slotHeight = Math.floor(slotWidth * 0.82);
 
-        var wordArea = window.Utils.createElement("div", "puzzle-word-area");
+        var wordArea = window.Utils.createElement('div', 'puzzle-word-area');
         wordArea.style.cssText =
-            'display:flex;gap:14px;justify-content:center;align-items:center;min-height:' + (slotHeight + 20) + 'px;margin-bottom:24px;';
+            'display:flex;gap:12px;justify-content:center;align-items:center;min-height:' + (slotHeight + 16) + 'px;';
         this.gameArea.appendChild(wordArea);
         
-        // 3. Alt Kısım: Havuz Alanı (Draggable Syllable Cards)
-        var poolArea = window.Utils.createElement("div", "puzzle-pool-area");
+        // 3. Alt Kısım: Havuz Alanı (Draggable / Tappable Syllable Cards)
+        var poolArea = window.Utils.createElement('div', 'puzzle-pool-area');
         poolArea.style.cssText =
-            'display:flex;flex-wrap:wrap;gap:16px;justify-content:center;align-items:center;min-height:' + (slotHeight + 20) + 'px;';
+            'display:flex;flex-wrap:wrap;gap:14px;justify-content:center;align-items:center;min-height:' + (slotHeight + 16) + 'px;';
         this.gameArea.appendChild(poolArea);
         
-        // Yuvaları oluştur (Tek heceli kelimeler dahil TÜM kelimeler için boş yuva)
         for (var i = 0; i < syllables.length; i++) {
-            var slot = window.Utils.createElement("div", "puzzle-slot");
+            var slot = window.Utils.createElement('div', 'puzzle-slot');
             slot.style.cssText =
                 'width:' + slotWidth + 'px;height:' + slotHeight + 'px;' +
-                'border:4px dashed rgba(255,255,255,0.7);border-radius:20px;' +
-                'background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;' +
+                'border:4px dashed rgba(255,255,255,0.8);border-radius:20px;' +
+                'background:rgba(255,255,255,0.22);display:flex;align-items:center;justify-content:center;' +
                 'box-sizing:border-box;transition:all 0.2s;';
             slot.dataset.expectedIndex = i;
             slot.dataset.expectedSyllable = syllables[i];
@@ -135,8 +133,6 @@
             this.slots.push(slot);
         }
         
-        // Havuzdaki kartları hazırla
-        // Tek heceli kelimelerde çocuğa seçenek sunmak için 1 distractor ekle
         var poolItems = syllables.map(function(s, idx) {
             return { syllable: s, correctIndex: idx };
         });
@@ -157,34 +153,76 @@
 
         poolItems.forEach(function(item) {
             var color = window.GameData.getRandomColor();
-            var card = window.Utils.createElement("div", "puzzle-draggable-card");
-            card.textContent = item.syllable.toUpperCase();
+            var card = window.Utils.createElement('div', 'puzzle-draggable-card');
+            card.textContent = window.Utils.toUpperTR(item.syllable);
             card.style.cssText =
                 'width:' + slotWidth + 'px;height:' + slotHeight + 'px;' +
                 'border-radius:20px;background:' + color + ';color:white;font-weight:900;' +
-                'font-size:clamp(22px, 5vw, 36px);display:flex;align-items:center;justify-content:center;' +
-                'box-shadow:0 6px 14px rgba(0,0,0,0.2);cursor:grab;user-select:none;touch-action:none;' +
+                'font-size:clamp(22px, 5vw, 34px);display:flex;align-items:center;justify-content:center;' +
+                'box-shadow:0 6px 14px rgba(0,0,0,0.2);cursor:pointer;user-select:none;touch-action:none;' +
                 'transition:transform 0.15s;border:3px solid white;';
 
             card.dataset.syllable = item.syllable;
             card.dataset.correctIndex = item.correctIndex;
 
-            self.makeDraggable(card, poolArea);
+            self.makeInteractive(card, poolArea);
             poolArea.appendChild(card);
             self.draggableCards.push(card);
         });
     };
 
-    WordPuzzleGame.prototype.makeDraggable = function(el, poolArea) {
+    WordPuzzleGame.prototype.placeCardIntoSlot = function(el, slot) {
+        var self = this;
+        slot.dataset.filled = 'true';
+        el.dataset.placed = 'true';
+        el.style.position = 'static';
+        el.style.left = 'auto';
+        el.style.top = 'auto';
+        el.style.transform = 'none';
+        el.style.zIndex = 'auto';
+        el.style.cursor = 'default';
+        el.style.boxShadow = 'none';
+
+        slot.innerHTML = '';
+        slot.appendChild(el);
+        slot.style.border = '4px solid #4CAF50';
+        slot.style.background = 'rgba(76,175,80,0.3)';
+
+        window.AudioManager.playCorrect();
+        window.Utils.bounceElement(el);
+
+        this.filledCount++;
+        var syllables = this.currentWord.syllables || [this.currentWord.word];
+
+        if (this.filledCount === syllables.length) {
+            if (this.currentImageEl) {
+                window.Utils.celebrateElement(this.currentImageEl);
+            }
+            setTimeout(function() {
+                window.speechSynthesis.cancel();
+                window.AudioManager.speakWord(self.currentWord.word);
+                self.showCorrectFeedback(self.gameArea);
+                self.showCorrectOverlay(window.Utils.toUpperTR(self.currentWord.word) + ' 🎉');
+
+                setTimeout(function() {
+                    self.nextRound();
+                }, 1800);
+            }, 400);
+        }
+    };
+
+    WordPuzzleGame.prototype.makeInteractive = function(el) {
         var self = this;
         var startX, startY;
         var origLeft, origTop;
         var dragging = false;
+        var moved = false;
 
         var onStart = function(e) {
-            if (el.dataset.placed === "true") return;
-            e.preventDefault();
+            if (el.dataset.placed === 'true') return;
+            if (e.cancelable) e.preventDefault();
             dragging = true;
+            moved = false;
 
             var clientX = (e.touches && e.touches.length > 0) ? e.touches[0].clientX : e.clientX;
             var clientY = (e.touches && e.touches.length > 0) ? e.touches[0].clientY : e.clientY;
@@ -196,45 +234,66 @@
             origLeft = rect.left;
             origTop = rect.top;
 
-            el.style.position = 'fixed';
-            el.style.left = origLeft + 'px';
-            el.style.top = origTop + 'px';
-            el.style.zIndex = '1000';
-            el.style.transform = 'scale(1.1)';
-            el.style.boxShadow = '0 12px 24px rgba(0,0,0,0.3)';
-
             window.speechSynthesis.cancel();
             window.AudioManager.speakSyllable(el.dataset.syllable);
         };
 
         var onMove = function(e) {
             if (!dragging) return;
-            e.preventDefault();
-
             var clientX = (e.touches && e.touches.length > 0) ? e.touches[0].clientX : e.clientX;
             var clientY = (e.touches && e.touches.length > 0) ? e.touches[0].clientY : e.clientY;
 
             var dx = clientX - startX;
             var dy = clientY - startY;
 
-            el.style.left = (origLeft + dx) + 'px';
-            el.style.top = (origTop + dy) + 'px';
+            if (!moved && Math.hypot(dx, dy) > 8) {
+                moved = true;
+                el.style.position = 'fixed';
+                el.style.left = origLeft + 'px';
+                el.style.top = origTop + 'px';
+                el.style.zIndex = '1000';
+                el.style.transform = 'scale(1.1)';
+                el.style.boxShadow = '0 12px 24px rgba(0,0,0,0.3)';
+            }
+
+            if (moved) {
+                if (e.cancelable) e.preventDefault();
+                el.style.left = (origLeft + dx) + 'px';
+                el.style.top = (origTop + dy) + 'px';
+            }
         };
 
-        var onEnd = function(e) {
+        var onEnd = function() {
             if (!dragging) return;
             dragging = false;
+
+            // Eğer çocuk sürüklemek yerine dokunduysa (Tap-to-Place): sıradaki boş yuvayı kontrol et
+            if (!moved) {
+                var nextSlot = null;
+                for (var s = 0; s < self.slots.length; s++) {
+                    if (self.slots[s].dataset.filled !== 'true') {
+                        nextSlot = self.slots[s];
+                        break;
+                    }
+                }
+                if (nextSlot && nextSlot.dataset.expectedSyllable === el.dataset.syllable) {
+                    self.placeCardIntoSlot(el, nextSlot);
+                } else {
+                    window.AudioManager.playWrong();
+                    window.Utils.shakeElement(el);
+                }
+                return;
+            }
 
             var elRect = el.getBoundingClientRect();
             var droppedInSlot = null;
 
-            // Genişletilmiş temas toleransı (+30px) ile yuva kontrolü
             for (var i = 0; i < self.slots.length; i++) {
                 var slot = self.slots[i];
-                if (slot.dataset.filled === "true") continue;
+                if (slot.dataset.filled === 'true') continue;
 
                 var slotRect = slot.getBoundingClientRect();
-                var pad = 30;
+                var pad = 35;
                 if (elRect.left + elRect.width / 2 >= slotRect.left - pad &&
                     elRect.left + elRect.width / 2 <= slotRect.right + pad &&
                     elRect.top + elRect.height / 2 >= slotRect.top - pad &&
@@ -245,46 +304,9 @@
             }
 
             if (droppedInSlot && droppedInSlot.dataset.expectedSyllable === el.dataset.syllable) {
-                // DOĞRU YUVA
-                droppedInSlot.dataset.filled = "true";
-                el.dataset.placed = "true";
-                el.style.position = 'static';
-                el.style.transform = 'none';
-                el.style.zIndex = 'auto';
-                el.style.cursor = 'default';
-                el.style.boxShadow = 'none';
-
-                droppedInSlot.innerHTML = '';
-                droppedInSlot.appendChild(el);
-                droppedInSlot.style.border = '4px solid #4CAF50';
-                droppedInSlot.style.background = 'rgba(76,175,80,0.3)';
-
-                window.AudioManager.playCorrect();
-                window.Utils.bounceElement(el);
-
-                self.filledCount++;
-                var syllables = self.currentWord.syllables || [self.currentWord.word];
-
-                if (self.filledCount === syllables.length) {
-                    // Kelime tamamlandı!
-                    setTimeout(function() {
-                        window.speechSynthesis.cancel();
-                        window.AudioManager.speakWord(self.currentWord.word);
-                        self.showCorrectFeedback(self.gameArea);
-                        self.showCorrectOverlay(self.currentWord.word.toUpperCase() + ' 🎉');
-
-                        setTimeout(function() {
-                            self.nextRound();
-                        }, 1800);
-                    }, 400);
-                }
+                self.placeCardIntoSlot(el, droppedInSlot);
             } else {
-                // YANLIŞ veya DIŞARI BIRAKILDI -> Geri döndür
-                if (droppedInSlot) {
-                    window.AudioManager.playZort();
-                } else {
-                    window.AudioManager.playWrong();
-                }
+                window.AudioManager.playWrong();
                 window.Utils.shakeElement(el);
 
                 el.style.position = 'static';
