@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#667eea">
+    <meta name="description" content="Çocuklar için Türkçe okuma öğretici oyun uygulaması">
+    <title>Okuma Öğreniyorum</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/png" sizes="192x192" href="assets/images/icons/icon-192.png">
+    <link rel="icon" type="image/png" sizes="48x48" href="assets/images/icons/icon-48.png">
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
+    <link rel="apple-touch-icon" href="assets/images/icons/icon-192.png">
+    <link rel="stylesheet" href="css/main.css">
+</head>
+<body>
+    <div id="app">
+
+        <!-- ══════════════════════════════════════ -->
+        <!-- ANA MENÜ -->
+        <!-- ══════════════════════════════════════ -->
+        <div id="screen-menu" class="screen active">
+            <div class="menu-title">
+                <h1>📚 Okuma<br>Öğreniyorum</h1>
+                <div class="subtitle">Harfler, Heceler, Kelimeler</div>
+                <div class="stars-display" id="total-stars">⭐ 0</div>
+            </div>
+
+            <div class="menu-sections" id="menu-sections">
+                <!-- JS ile doldurulacak -->
+            </div>
+
+            <div class="menu-bottom">
+                <button class="menu-btn-secondary" id="btn-install-pwa" style="display:none;background:rgba(72,187,120,0.3);border-color:rgba(72,187,120,0.8);color:#d4fcd4;">📲 Uygulamayı Yükle</button>
+                <button class="menu-btn-secondary" id="btn-settings">⚙️ Ayarlar</button>
+                <button class="menu-btn-secondary" id="btn-fullscreen">📺 Tam Ekran</button>
+            </div>
+
+            <div class="version-info" id="version-info"></div>
+        </div>
+
+        <!-- ══════════════════════════════════════ -->
+        <!-- BÖLÜM MENÜSÜ -->
+        <!-- ══════════════════════════════════════ -->
+        <div id="screen-section" class="screen">
+            <div class="section-header" id="section-header">
+                <button class="back-btn" id="btn-back-section">←</button>
+                <h2 id="section-title"></h2>
+            </div>
+            <div class="group-selector" id="group-selector">
+                <!-- JS ile doldurulacak -->
+            </div>
+            <div class="game-list" id="game-list">
+                <!-- JS ile doldurulacak -->
+            </div>
+        </div>
+
+        <!-- ══════════════════════════════════════ -->
+        <!-- OYUN EKRANI -->
+        <!-- ══════════════════════════════════════ -->
+        <div id="screen-game" class="screen">
+            <div class="game-top-bar" id="game-top-bar">
+                <button class="back-btn" id="btn-back-game">←</button>
+                <span id="game-title-bar" style="flex:1;color:white;font-weight:700;font-size:clamp(13px,2.8vw,18px);text-align:center;text-shadow:1px 1px 3px rgba(0,0,0,0.3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
+                <span id="game-stars-bar" style="color:white;font-size:clamp(12px,2.5vw,15px);white-space:nowrap;">⭐ 0</span>
+                <button id="btn-help-game" style="width:36px;height:36px;border:none;border-radius:50%;background:rgba(255,255,255,0.25);color:white;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;">❓</button>
+            </div>
+            <div id="game-container"></div>
+        </div>
+
+    </div>
+
+    <!-- ══════════════════════════════════════ -->
+    <!-- SCRIPTS -->
+    <!-- ══════════════════════════════════════ -->
+    <script src="js/data.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/audio.js"></script>
+    <script src="js/progress.js"></script>
+    <script src="js/svg-letters.js"></script>
+    <script src="js/games/base-game.js"></script>
+    <script src="js/games/letter-learn.js"></script>
+    <script src="js/games/balloon-pop.js"></script>
+    <script src="js/games/letter-hunt.js"></script>
+    <script src="js/games/letter-paint.js"></script>
+    <script src="js/games/letter-match.js"></script>
+    <script src="js/games/syllable-train.js"></script>
+    <script src="js/games/syllable-match.js"></script>
+    <script src="js/games/syllable-pop.js"></script>
+    <script src="js/games/word-puzzle.js"></script>
+    <script src="js/games/word-match.js"></script>
+    <script src="js/games/word-hunt.js"></script>
+    <script src="js/games/sentence-train.js"></script>
+    <script src="js/games/story-reader.js"></script>
+    <script src="js/games/letter-sort.js"></script>
+    <script src="js/games/syllable-box.js"></script>
+    <script src="js/games/word-memory.js"></script>
+    <script src="js/games/number-learn.js"></script>
+    <script src="js/games/number-count.js"></script>
+    <script src="js/games/number-order.js"></script>
+    <script src="js/games/number-pop.js"></script>
+    <script src="js/app.js"></script>
+
+    <!-- Çevrimdışı Bildirim Toast'ı -->
+    <div id="offline-toast" class="offline-toast"></div>
+
+    <!-- Service Worker ve PWA Yönetimi -->
+    <script>
+        // Toast Bildirimi Gösterme Fonksiyonu
+        window.showAppToast = function(msg, duration) {
+            var toast = document.getElementById('offline-toast');
+            if (!toast) return;
+            toast.textContent = msg;
+            toast.classList.add('show');
+            clearTimeout(window._toastTimeout);
+            window._toastTimeout = setTimeout(function() {
+                toast.classList.remove('show');
+            }, duration || 3500);
+        };
+
+        // PWA Yükleme (Install Prompt) Yakalama
+        window.deferredInstallPrompt = null;
+        window.addEventListener('beforeinstallprompt', function(e) {
+            e.preventDefault();
+            window.deferredInstallPrompt = e;
+            var installBtn = document.getElementById('btn-install-pwa');
+            if (installBtn) {
+                installBtn.style.display = 'inline-block';
+            }
+        });
+
+        window.addEventListener('appinstalled', function() {
+            window.deferredInstallPrompt = null;
+            var installBtn = document.getElementById('btn-install-pwa');
+            if (installBtn) installBtn.style.display = 'none';
+            window.showAppToast('🎉 Uygulama yüklendi! Artık ana ekranınızdan doğrudan açabilirsiniz.', 4000);
+        });
+
+        // Çevrimdışı / Çevrimiçi Durum Dinleyicileri
+        window.addEventListener('offline', function() {
+            window.showAppToast('📴 Çevrimdışısınız. Uygulama ve tüm oyunlar kesintisiz çalışır!', 3500);
+        });
+        window.addEventListener('online', function() {
+            window.showAppToast('📶 İnternet bağlantısı sağlandı.', 2500);
+        });
+
+        // Service Worker Kaydı ve Mesaj Dinleyicisi
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function() {
+                navigator.serviceWorker.register('sw.js')
+                    .then(function(reg) {
+                        console.log('[App] Service Worker kayıtlı:', reg.scope);
+
+                        // Eğer hemen aktif bir worker varsa veya güncelleniyorsa
+                        reg.addEventListener('updatefound', function() {
+                            var newWorker = reg.installing;
+                            if (newWorker) {
+                                newWorker.addEventListener('statechange', function() {
+                                    if (newWorker.state === 'activated') {
+                                        window.showAppToast('✨ Uygulama güncellendi ve çevrimdışı hazır!', 3000);
+                                    }
+                                });
+                            }
+                        });
+                    })
+                    .catch(function(err) {
+                        console.warn('[App] Service Worker kaydı başarısız:', err);
+                    });
+
+                // Service Worker'dan gelen mesajları dinle
+                navigator.serviceWorker.addEventListener('message', function(event) {
+                    if (event.data && event.data.type === 'SW_OFFLINE_READY') {
+                        window.showAppToast('✨ Tüm oyunlar indirildi! Sunucu kapalıyken de oynayabilirsiniz.', 4000);
+                    }
+                });
+            });
+        }
+    </script>
+</body>
+</html>
